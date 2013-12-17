@@ -1,0 +1,12 @@
+[submodule "soot"]
+	path = soot
+	url = git@github.com:Sable/soot.git
+[submodule "heros"]
+	path = heros
+	url = git@github.com:Sable/heros.git
+[submodule "jasmin"]
+	path = jasmin
+	url = git@github.com:Sable/jasmin.git
+[submodule "smali"]
+	path = smali
+	url = https://code.google.com/p/smali/

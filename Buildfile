@@ -1,0 +1,145 @@
+require 'rubygems'
+require 'buildr'
+require 'rake'
+Java.load
+require "antwrap"
+
+repositories.remote << 'http://mirrors.ibiblio.org/pub/mirrors/maven2/'
+#repositories.remote << 'http://repo1.maven.org/'
+#repositories.remote << 'http://mvnrepository.com/'
+Project.local_task :run
+
+baksmali_url = 'https://bitbucket.org/JesusFreke/smali/downloads/baksmali-2.0.2.jar'
+baksmali_2 = "baksmali:baksmali:jar:2.0.2"
+download(artifact(baksmali_2)=>baksmali_url)
+
+smali_url = 'https://bitbucket.org/JesusFreke/smali/downloads/smali-2.0.2.jar'
+smali_2 = "smali:smali:jar:2.0.2"
+download(artifact(smali_2)=>smali_url)
+
+heros_libs = [
+  'com.google.guava:guava:jar:14.0.1',
+  'org.slf4j:slf4j-api:jar:1.7.5',
+  'org.slf4j:slf4j-simple:jar:1.7.5',
+]
+
+jasmin_libs = [
+  'libs/java-cup-11a.jar',
+]
+
+soot_libs = [
+  'libs/baksmali-1.4.3-dev.jar',
+  'soot/libs/polyglot.jar',
+  'soot/libs/AXMLPrinter2.jar',
+  'org.apache.ant:ant:jar:1.7.0',
+  baksmali_2,
+] + jasmin_libs
+
+task :jas do
+  jas = ant("jas") do |ant|
+    ant.mkdir(dir:"jasmin/target")
+    ant.mkdir(dir:"jasmin/target/classes")
+    ant.javac(
+      destdir:"jasmin/target/classes",
+      optimize:"true",
+      source:"1.5",
+      target:"1.5",
+    ) do |ant|
+      ant.src(path:"jasmin/lib/jas/src/jas")
+    end
+  end
+  ant("autogen_compile") do |ant|
+    ant.javac(
+      destdir:"jasmin/target/classes",
+      classpath:"jasmin/target/classes",
+      optimize:"true",
+      source:"1.5",
+      target:"1.5",
+    ) do |ant|
+      ant.src(path:"jasmin/lib/jas/src/scm/autogen")
+    end
+  end
+  ant("autogen_run") do |ant|
+    ant.mkdir(dir:"jasmin/target/generated")
+    ant.mkdir(dir:"jasmin/target/generated/scm")
+    ant.java(
+      classname:"autogen",
+      classpath:"jasmin/target/classes",
+      dir:"jasmin/target/generated/scm",
+      fork:true,
+    )
+  end
+  ant("autogen_compile") do |ant|
+    ant.javac(
+      destdir:"jasmin/target/classes",
+      classpath:"jasmin/target/classes",
+      optimize:"true",
+      source:"1.5",
+      target:"1.5",
+    ) do |ant|
+      ant.src(path:"jasmin/lib/jas/src/scm")
+      ant.src(path:"jasmin/target/generated/scm")
+    end
+  end
+end
+
+jasmin_layout = Layout.new
+jasmin_layout[:source, :main, :java] = "src"
+jasmin_layout[:target,] = "target"
+jasmin_layout[:target, :main] = "target/main"
+jasmin_layout[:target, :main, :classes] = "target/main/classes"
+
+define 'jasmin', base_dir: "jasmin", layout: jasmin_layout do
+  project.version = 'git-master'
+  Rake::Task[:jas].execute
+  jas_sources = FileList[_("lib/jas/src/jas/**/*.java")]
+  jas_compiled = file(_("lib/jas/target/classes")=>jas_sources) do |dir|
+  end
+  compile.from [
+    _("generated/scm"),
+  ]
+  compile.with jasmin_libs + ['jasmin/target/classes']
+  compile.options.target = '1.5'
+  compile.options.source = '1.5'
+  package(:jar)
+end
+
+heros_layout = Layout.new
+heros_layout[:source, :main, :java] = "src"
+heros_layout[:target,] = "target"
+heros_layout[:target, :main] = "target/main"
+heros_layout[:target, :main, :classes] = "target/main/classes"
+
+define 'heros', base_dir: "heros", layout: heros_layout do
+  project.version = 'git-master'
+  package(:jar)
+  compile.with heros_libs
+  compile.using :lint => 'unchecked', :target => '1.5', :source => '1.5'
+  test.with 'org.hamcrest:hamcrest-all:jar:1.3'
+  test.using :java_args => ['-ea']
+end
+
+soot_layout = Layout.new
+soot_layout[:source, :main, :java] = "src"
+
+define 'soot', base_dir: "soot", layout: soot_layout do |soot|
+  project.version = 'git-master'
+  package(:jar).with(:manifest => {
+    'Main-Class'=>'soot.Main'
+  }).merge(
+    soot_libs + heros_libs + [project('jasmin'), project('heros') ]
+  )
+
+  compile.with soot_libs + [ project('jasmin'), project('heros') ]
+  compile.using :lint => 'none'
+  p compile.dependencies
+  compile.from [
+    "soot/generated/singletons",
+    "soot/generated/options",
+    "soot/generated/sablecc",
+    "soot/generated/jastadd",
+  ]
+  test.with 'org.hamcrest:hamcrest-all:jar:1.3'
+  test.using :java_args => ['-ea']
+end
+
