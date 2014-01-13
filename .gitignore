@@ -1,3 +1,6 @@
 *.swp
 *.swo
 *.class
+target
+libs/soot.jar
+

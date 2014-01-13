@@ -9,6 +9,7 @@ repositories.remote << 'http://mirrors.ibiblio.org/pub/mirrors/maven2/'
 #repositories.remote << 'http://mvnrepository.com/'
 Project.local_task :run
 
+  
 baksmali_url = 'https://bitbucket.org/JesusFreke/smali/downloads/baksmali-2.0.2.jar'
 baksmali_2 = "baksmali:baksmali:jar:2.0.2"
 download(artifact(baksmali_2)=>baksmali_url)
@@ -83,26 +84,39 @@ task :jas do
   end
 end
 
+jpdg_layout = Layout.new
+jpdg_layout[:source] = "source"
+
+define 'jpdg', layout: jpdg_layout do |soot|
+  project.version = 'git-master'
+  run.using main: ['edu.cwru.jpdg.JPDG']
+  package(:jar).with(:manifest => {
+    'Main-Class'=>'edu.cwru.jpdg.JDPG'
+  }).merge(
+    [ 'libs/soot.jar' ]
+  )
+  compile.with [ 'libs/soot.jar' ]
+  test.with 'org.hamcrest:hamcrest-all:jar:1.3'
+  test.using :java_args => ['-ea']
+end
+
 jasmin_layout = Layout.new
 jasmin_layout[:source, :main, :java] = "src"
 jasmin_layout[:target,] = "target"
 jasmin_layout[:target, :main] = "target/main"
 jasmin_layout[:target, :main, :classes] = "target/main/classes"
 
+
 define 'jasmin', base_dir: "jasmin", layout: jasmin_layout do
   project.version = 'git-master'
-  Rake::Task[:jas].execute
-  jas_sources = FileList[_("lib/jas/src/jas/**/*.java")]
-  jas_compiled = file(_("lib/jas/target/classes")=>jas_sources) do |dir|
-  end
-  compile.from [
-    _("generated/scm"),
-  ]
-  compile.with jasmin_libs + ['jasmin/target/classes']
+  mkdir_p _('target/classes')
+  compile.enhance([:jas])
+  compile.with jasmin_libs + [_('target/classes')]
   compile.options.target = '1.5'
   compile.options.source = '1.5'
   package(:jar)
 end
+
 
 heros_layout = Layout.new
 heros_layout[:source, :main, :java] = "src"
@@ -129,10 +143,8 @@ define 'soot', base_dir: "soot", layout: soot_layout do |soot|
   }).merge(
     soot_libs + heros_libs + [project('jasmin'), project('heros') ]
   )
-
   compile.with soot_libs + [ project('jasmin'), project('heros') ]
   compile.using :lint => 'none'
-  p compile.dependencies
   compile.from [
     "soot/generated/singletons",
     "soot/generated/options",
