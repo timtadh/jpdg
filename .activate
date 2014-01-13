@@ -1,0 +1,2 @@
+export CLASSPATH=$(pwd)/libs/soot.jar:$CLASSPATH
+export CLASSPATH=$(pwd)/target/main/classes:$CLASSPATH
