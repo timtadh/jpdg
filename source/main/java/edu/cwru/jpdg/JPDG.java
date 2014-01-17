@@ -11,6 +11,8 @@ import soot.jimple.toolkits.callgraph.Targets;
 import soot.toolkits.graph.Block;
 import soot.toolkits.graph.ExceptionalBlockGraph;
 
+import edu.cwru.jpdg.graph.Graph;
+
 public class JPDG {
     public static void main(String[] args) {
         System.out.println("x");
@@ -62,6 +64,8 @@ public class JPDG {
 
         soot.util.Chain<soot.SootClass> classes = S.getApplicationClasses();
 
+        Graph<Block> g = new Graph<Block>();
+
         System.out.println();
         for (soot.SootClass c : classes) {
             System.out.println(c);
@@ -74,8 +78,23 @@ public class JPDG {
                 ExceptionalBlockGraph ebg = new ExceptionalBlockGraph(body);
                 for (Iterator<Block> i = ebg.iterator(); i.hasNext(); ) {
                     Block b = i.next();
-                    System.out.print("      ");
-                    System.out.println(b.getClass());
+                    int uid = g.addNode(b);
+                    List<Block> succ = b.getSuccs();
+                    List<Block> pred = b.getPreds();
+                    System.out.print("      block "); System.out.println(b.getIndexInMethod());
+                    System.out.print("        succ");
+                    for (Block s : succ) {
+                        System.out.print(" ");
+                        System.out.print(s.getIndexInMethod());
+                        g.addEdge(uid, g.nodeUID(s), "cfg");
+                    }
+                    System.out.println();
+                    System.out.print("        pred");
+                    for (Block p : pred) {
+                        System.out.print(" ");
+                        System.out.print(p.getIndexInMethod());
+                    }
+                    System.out.println();
                 }
             }
             System.out.println();
@@ -88,5 +107,12 @@ public class JPDG {
 
         System.out.println();
         S.getCallGraph();
+
+        System.out.println();
+        try {
+            System.out.println(g.Serialize());
+        } catch (java.io.IOException e) {
+            throw new RuntimeException("biz", e);
+        }
     }
 }
