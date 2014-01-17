@@ -1,11 +1,15 @@
 package edu.cwru.jpdg;
 
 import java.util.*;
+
 import soot.options.Options;
 
 import soot.jimple.toolkits.callgraph.CHATransformer;
 import soot.jimple.toolkits.callgraph.CallGraph;
 import soot.jimple.toolkits.callgraph.Targets;
+
+import soot.toolkits.graph.Block;
+import soot.toolkits.graph.ExceptionalBlockGraph;
 
 public class JPDG {
     public static void main(String[] args) {
@@ -44,6 +48,9 @@ public class JPDG {
         O.setPhaseOption("cg.spark", "enabled:true");
         O.setPhaseOption("wjtp", "enabled:true");
         O.setPhaseOption("wjtp.myTrans", "enabled:true");
+        O.setPhaseOption("jop", "enabled:true");
+        O.setPhaseOption("bb", "enabled:false");
+        O.set_output_format(O.output_format_shimple);
         // O.set_app(true);
 
 
@@ -62,7 +69,14 @@ public class JPDG {
                 System.out.print("  ");
                 System.out.println(m);
                 System.out.print("    ");
-                System.out.println(m.retrieveActiveBody().getClass());
+                soot.Body body = m.retrieveActiveBody();
+                System.out.println(body.getClass());
+                ExceptionalBlockGraph ebg = new ExceptionalBlockGraph(body);
+                for (Iterator<Block> i = ebg.iterator(); i.hasNext(); ) {
+                    Block b = i.next();
+                    System.out.print("      ");
+                    System.out.println(b.getClass());
+                }
             }
             System.out.println();
         }
@@ -73,6 +87,6 @@ public class JPDG {
         }
 
         System.out.println();
-        System.out.println(S.getCallGraph());
+        S.getCallGraph();
     }
 }
