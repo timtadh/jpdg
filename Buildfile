@@ -153,5 +153,13 @@ define 'soot', base_dir: "soot", layout: soot_layout do |soot|
   ]
   test.with 'org.hamcrest:hamcrest-all:jar:1.3'
   test.using :java_args => ['-ea']
+
+  mkdir_p _("target/main/classes/soot/baf/toolkits/base/")
+  cp _("src/soot/baf/toolkits/base/peephole.dat"), _("target/main/classes/soot/baf/toolkits/base/")
+
+  mkdir_p _("target/main/classes/soot/jimple/parser/parser/")
+  cp _("generated/sablecc/soot/jimple/parser/parser/parser.dat"), _("target/main/classes/soot/jimple/parser/parser/parser.dat")
+  mkdir_p _("target/main/classes/soot/jimple/parser/lexer/")
+  cp _("generated/sablecc/soot/jimple/parser/lexer/lexer.dat"), _("target/main/classes/soot/jimple/parser/lexer/lexer.dat")
 end
 
