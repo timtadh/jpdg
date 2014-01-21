@@ -38,7 +38,8 @@ soot_libs = [
 
 jpdg_libs = [
   #'org.javatuples:javatuples:jar:1.2',
-  'com.cedarsoftware:json-io:jar:2.4.1',
+  #'com.cedarsoftware:json-io:jar:2.4.1',
+  'com.google.code.gson:gson:jar:2.2.4',
 ]
 
 task :jas do
