@@ -1,3 +1,6 @@
-export CLASSPATH=$(pwd)/libs/soot.jar:$CLASSPATH
+buildr jpdg:export_libs
+for file in $(find $(pwd)/libs/ext -name '*.jar'); do
+  export CLASSPATH=$file:$CLASSPATH
+done
 export CLASSPATH=$(pwd)/target/main/classes:$CLASSPATH
 alias soot='java soot.Main'

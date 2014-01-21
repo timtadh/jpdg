@@ -36,6 +36,12 @@ soot_libs = [
   baksmali_2,
 ] + jasmin_libs
 
+jpdg_libs = [
+  #'org.javatuples:javatuples:jar:1.2',
+  #'com.cedarsoftware:json-io:jar:2.4.1',
+  'com.google.code.gson:gson:jar:2.2.4',
+]
+
 task :jas do
   jas = ant("jas") do |ant|
     ant.mkdir(dir:"jasmin/target")
@@ -93,11 +99,18 @@ define 'jpdg', layout: jpdg_layout do |soot|
   package(:jar).with(:manifest => {
     'Main-Class'=>'edu.cwru.jpdg.JDPG'
   }).merge(
-    [ 'libs/soot.jar' ]
+    [ 'libs/soot.jar' ] + jpdg_libs
   )
-  compile.with [ 'libs/soot.jar' ]
+  compile.with [ 'libs/soot.jar' ] + jpdg_libs
   test.with 'org.hamcrest:hamcrest-all:jar:1.3'
   test.using :java_args => ['-ea']
+  task :export_libs do |t|
+    for lib in jpdg_libs
+      artifact(lib).invoke
+    end
+    mkdir_p _("libs/ext")
+    cp project.compile.dependencies.collect { |t| t.to_s }, _("libs/ext")
+  end
 end
 
 jasmin_layout = Layout.new
