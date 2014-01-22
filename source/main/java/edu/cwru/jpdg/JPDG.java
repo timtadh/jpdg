@@ -39,6 +39,11 @@ import soot.jimple.toolkits.callgraph.Targets;
 
 import soot.toolkits.graph.Block;
 import soot.toolkits.graph.ExceptionalBlockGraph;
+import soot.toolkits.graph.MHGPostDominatorsFinder;
+import soot.toolkits.graph.DominatorNode;
+import soot.toolkits.graph.CytronDominanceFrontier;
+import soot.toolkits.graph.pdg.EnhancedBlockGraph;
+import soot.toolkits.graph.pdg.MHGDominatorTree;
 
 import edu.cwru.jpdg.graph.Graph;
 
@@ -75,12 +80,12 @@ public class JPDG {
         O.set_soot_classpath(cp);
         O.set_process_dir(dirs);
         O.set_exclude(excluded);
-        O.set_whole_program(true);
-        O.setPhaseOption("cg.spark", "enabled:true");
-        O.setPhaseOption("wjtp", "enabled:true");
-        O.setPhaseOption("wjtp.myTrans", "enabled:true");
-        O.setPhaseOption("jop", "enabled:true");
-        O.setPhaseOption("bb", "enabled:false");
+        // O.set_whole_program(true);
+        // O.setPhaseOption("cg.spark", "enabled:true");
+        // O.setPhaseOption("wjtp", "enabled:true");
+        // O.setPhaseOption("wjtp.myTrans", "enabled:true");
+        // O.setPhaseOption("jop", "enabled:true");
+        // O.setPhaseOption("bb", "enabled:false");
         O.set_output_format(O.output_format_shimple);
         // O.set_app(true);
 
@@ -104,7 +109,9 @@ public class JPDG {
                 System.out.print("    ");
                 soot.Body body = m.retrieveActiveBody();
                 System.out.println(body.getClass());
-                ExceptionalBlockGraph ebg = new ExceptionalBlockGraph(body);
+                // ExceptionalBlockGraph ebg = new ExceptionalBlockGraph(body);
+                EnhancedBlockGraph ebg = new EnhancedBlockGraph(body);
+                add_cfg_cdg(g, ebg);
                 for (Iterator<Block> i = ebg.iterator(); i.hasNext(); ) {
                     Block b = i.next();
                     int uid = g.addNode(b);
@@ -115,7 +122,6 @@ public class JPDG {
                     for (Block s : succ) {
                         System.out.print(" ");
                         System.out.print(s.getIndexInMethod());
-                        g.addEdge(uid, g.nodeUID(s), "cfg");
                     }
                     System.out.println();
                     System.out.print("        pred");
@@ -129,15 +135,38 @@ public class JPDG {
             System.out.println();
         }
 
-        System.out.println();
-        for (soot.SootMethod m : S.getEntryPoints()) {
-            System.out.println(m);
-        }
+        // System.out.println();
+        // for (soot.SootMethod m : S.getEntryPoints()) {
+        //     System.out.println(m);
+        // }
 
-        System.out.println();
-        S.getCallGraph();
+        // System.out.println();
+        // S.getCallGraph();
 
         System.out.println();
         System.out.println(g.Serialize());
+    }
+
+    public static void add_cfg_cdg(Graph g, EnhancedBlockGraph ebg) {
+        Map<Integer,Set<Integer>> CD = new HashMap<Integer,Set<Integer>>();
+        MHGPostDominatorsFinder pdf = new MHGPostDominatorsFinder(ebg);
+        MHGDominatorTree pdom_tree = new MHGDominatorTree(pdf);
+        CytronDominanceFrontier rdf = new CytronDominanceFrontier(pdom_tree);
+        for (Iterator<Block> i = ebg.iterator(); i.hasNext(); ) {
+            Block b = i.next();
+            int uid = g.nodeUID(b);
+            CD.put(uid, new HashSet<Integer>());
+            for (Block s : b.getSuccs()) {
+                g.addEdge(uid, g.nodeUID(s), "cfg");
+            }
+        }
+        for (Iterator<Block> i = ebg.iterator(); i.hasNext(); ) {
+            Block y = i.next();
+            for (Object o : rdf.getDominanceFrontierOf(pdom_tree.getDode(y))) {
+                Block x = ((Block)((DominatorNode)o).getGode());
+                g.addEdge(g.nodeUID(x), g.nodeUID(y), "cdg");
+                System.out.printf("%d %d %s\n", g.nodeUID(x), g.nodeUID(y), "cdg");
+            }
+        }
     }
 }
