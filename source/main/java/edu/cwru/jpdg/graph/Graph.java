@@ -30,7 +30,7 @@ package edu.cwru.jpdg.graph;
  */
 
 import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
+import java.lang.StringBuilder;
 
 import com.google.gson.Gson;
 
@@ -40,63 +40,68 @@ import com.google.gson.Gson;
 public class Graph<T> {
 
     int next_uid = 0;
-    ConcurrentHashMap<T,Integer> nodes = new ConcurrentHashMap<T,Integer>();
-    ConcurrentHashMap<Integer,String> node_labels =
-        new ConcurrentHashMap<Integer,String>();
-    ConcurrentHashMap<String,ConcurrentHashMap<Integer,Set<Integer>>> edges =
-        new ConcurrentHashMap<String,ConcurrentHashMap<Integer,Set<Integer>>>();
+
+    HashMap<Integer,Node> nodes = new HashMap<Integer,Node>();
+    HashMap<T,Integer> rnodes = new HashMap<T,Integer>();
+    List<String> labels =
+        new ArrayList<String>();
+    HashMap<String,Integer> rlabels =
+        new HashMap<String,Integer>();
+    HashMap<Integer,Integer> node_labels =
+        new HashMap<Integer,Integer>();
+    HashMap<String,HashMap<Integer,Set<Integer>>> edges =
+        new HashMap<String,HashMap<Integer,Set<Integer>>>();
 
     public Graph() { }
 
-    public Graph(String serialized) {
-        Map<String, Object> json = (new Gson()).fromJson(serialized, Map.class);
-        List<String> labels = ((List<String>)json.get("node_labels"));
-        for (int i = 0; i < labels.size(); i++) {
-            node_labels.put(i, labels.get(i));
-        }
-        Map<String,List<List<Double>>> _edges = ((Map<String,List<List<Double>>>)json.get("edges"));
-        for (Map.Entry<String,List<List<Double>>> e : _edges.entrySet()) {
-            String name = e.getKey();
-            for (int i = 0; i < labels.size(); i++) {
-                for (double j : e.getValue().get(i)) {
-                    this.addEdge(i, (int)j, name);
-                }
-            }
-        }
-        next_uid = labels.size();
-    }
-
-    public int addNode(T node) {
-        return addNode(node, "");
-    }
-
-    public synchronized int addNode(T node, String label) {
-        if (nodes.containsKey(node)) {
-            return nodes.get(node);
+    public int addNode(T node, String label, String package_name, String class_name, String method_name, int start_l, int start_c, int end_l, int end_c) {
+        if (rnodes.containsKey(node)) {
+            return rnodes.get(node);
         }
         int uid = next_uid;
         next_uid++;
-        nodes.put(node, uid);
-        node_labels.put(uid, label);
+        nodes.put(uid, new Node(uid, label_num(label), package_name, class_name, method_name, start_l, start_c, end_l, end_c, this));
+        rnodes.put(node, uid);
+        node_labels.put(uid, label_num(label));
         return uid;
     }
 
     public int nodeUID(T node) {
-        return addNode(node);
+        if (rnodes.containsKey(node)) {
+            return rnodes.get(node);
+        }
+        throw new NoSuchElementException("uid has not yet been created");
     }
 
-    public String label(int node) throws NoSuchElementException {
+    private int label_num(String label) {
+        if (rlabels.containsKey(label)) {
+            return rlabels.get(label);
+        }
+        int num = labels.size();
+        rlabels.put(label, num);
+        labels.add(label);
+        return num;
+    }
+
+    public int labelNum(int node) {
         if (!node_labels.containsKey(node)) {
             throw new NoSuchElementException("uid has not yet been created");
         }
         return node_labels.get(node);
     }
 
+    public String label(int node) throws NoSuchElementException {
+        if (!node_labels.containsKey(node)) {
+            throw new NoSuchElementException("uid has not yet been created");
+        }
+        return labels.get(node_labels.get(node));
+    }
+
     public void setLabel(int node, String label) throws NoSuchElementException {
         if (!node_labels.containsKey(node)) {
             throw new NoSuchElementException("uid has not yet been created");
         }
-        node_labels.put(node, label);
+        node_labels.put(node, label_num(label));
     }
 
     public void addEdge(int a, int b, String type) throws NoSuchElementException {
@@ -106,36 +111,35 @@ public class Graph<T> {
         if (!node_labels.containsKey(b)) {
             throw new NoSuchElementException("uid b has not yet been created");
         }
-        edges.putIfAbsent(type, new ConcurrentHashMap<Integer,Set<Integer>>());
-        edges.get(type).putIfAbsent(a, Collections.synchronizedSet(new HashSet<Integer>()));
+        if (!edges.containsKey(type)) {
+            edges.put(type, new HashMap<Integer,Set<Integer>>());
+        }
+        if (!edges.get(type).containsKey(a)) {
+            edges.get(type).put(a, new HashSet<Integer>());
+        }
         edges.get(type).get(a).add(b);
     }
 
-    public synchronized String Serialize() {
-        Map<String,Object> M = new HashMap<String,Object>();
-        M.put("node_labels", new ArrayList<String>());
-        for (int i = 0; i < next_uid; i++) {
-            String label = node_labels.get(i);
-            if (label == null) {
-                label = "";
-            }
-            ((List<String>)M.get("node_labels")).add(i, label);
+    public String Serialize() {
+        StringBuilder sb = new StringBuilder();
+        for (Node n : nodes.values()) {
+            sb.append(n.Serialize());
+            sb.append("\n");
         }
-        M.put("edges", new HashMap<String,List<List<Integer>>>());
-        for (Map.Entry<String,ConcurrentHashMap<Integer,Set<Integer>>> e : edges.entrySet()) {
-            List<List<Integer>> edges = new ArrayList<List<Integer>>();
-            ((Map)M.get("edges")).put(e.getKey(), edges);
-            for (int i = 0; i < next_uid; i++) {
-                List<Integer> e_list = new ArrayList<Integer>();
-                Set<Integer> e_set = e.getValue().get(i);
-                if (e_set != null) {
-                    for (int j : e_set) {
-                        e_list.add(j);
-                    }
+        for (Map.Entry<String,HashMap<Integer,Set<Integer>>> E : edges.entrySet()) {
+            String e_label = E.getKey();
+            HashMap<Integer,Set<Integer>> edges = E.getValue();
+            for (Map.Entry<Integer,Set<Integer>> e : edges.entrySet()) {
+                int i = e.getKey();
+                for (int j : e.getValue()) {
+                    sb.append((new Edge(i, j, e_label, this)).Serialize());
+                    sb.append("\n");
                 }
-                edges.add(i, e_list);
             }
         }
-        return (new Gson()).toJson(M); // to do, figure out how to actually do this.
+        sb.append("labels\t");
+        sb.append((new Gson()).toJson(labels));
+        sb.append("\n");
+        return sb.toString();
     }
 }

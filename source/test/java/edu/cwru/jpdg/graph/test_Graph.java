@@ -41,14 +41,23 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class test_Graph {
 
-    String GS = "{\"edges\":{\"cfg\":[[1,2],[2],[]]},\"node_labels\":[\"a\",\"b\",\"c\"]}";
+    String GS =
+      "vertex	{\"id\":0,\"label\":0,\"package_name\":\"x.y\",\"class_name\":\"c\",\"method_name\":\"m\",\"start_line\":1,\"start_column\":-1,\"end_line\":2,\"end_column\":-1}\n" +
+      "vertex	{\"id\":1,\"label\":1,\"package_name\":\"x.y\",\"class_name\":\"c\",\"method_name\":\"m\",\"start_line\":1,\"start_column\":-1,\"end_line\":2,\"end_column\":-1}\n" +
+      "vertex	{\"id\":2,\"label\":2,\"package_name\":\"x.y\",\"class_name\":\"c\",\"method_name\":\"m\",\"start_line\":1,\"start_column\":-1,\"end_line\":2,\"end_column\":-1}\n" +
+      "edge	{\"src\":0,\"targ\":1,\"label\":\"cfg\",\"src_label\":0,\"targ_label\":1}\n" + 
+      "edge	{\"src\":0,\"targ\":2,\"label\":\"cfg\",\"src_label\":0,\"targ_label\":2}\n" + 
+      "edge	{\"src\":1,\"targ\":2,\"label\":\"cfg\",\"src_label\":1,\"targ_label\":2}\n" + 
+      "labels	[\"a\",\"b\",\"c\"]\n";
+    String E = "edge	{\"src\":0,\"targ\":1,\"label\":\"cfg\",\"src_label\":0,\"targ_label\":1}";
+    String V = "vertex	{\"id\":0,\"label\":1,\"package_name\":\"x.y\",\"class_name\":\"c\",\"method_name\":\"m\",\"start_line\":2,\"start_column\":3,\"end_line\":4,\"end_column\":5}";
 
     @Test
     public void build_graph() {
         Graph g = new Graph();
-        int a = g.addNode(new Object(), "a");
-        int b = g.addNode(new Object(), "b");
-        int c = g.addNode(new Object(), "c");
+        int a = g.addNode(new Object(), "a", "x.y", "c", "m", 1, -1, 2, -1);
+        int b = g.addNode(new Object(), "b", "x.y", "c", "m", 1, -1, 2, -1);
+        int c = g.addNode(new Object(), "c", "x.y", "c", "m", 1, -1, 2, -1);
         g.addEdge(a, b, "cfg");
         g.addEdge(a, c, "cfg");
         g.addEdge(b, c, "cfg");
@@ -56,9 +65,20 @@ public class test_Graph {
     }
 
     @Test
-    public void load_graph() {
-        Graph g = new Graph(GS);
-        assertThat(g.Serialize(), is(GS));
+    public void Edge() {
+        Graph g = new Graph();
+        int a = g.addNode(new Object(), "a", "x.y", "c", "m", 1, -1, 2, -1);
+        int b = g.addNode(new Object(), "b", "x.y", "c", "m", 1, -1, 2, -1);
+        int c = g.addNode(new Object(), "c", "x.y", "c", "m", 1, -1, 2, -1);
+        Edge e = new Edge(a, b, "cfg", g);
+        assertThat(e.Serialize(), is(E));
+    }
+
+    @Test
+    public void Vertex() {
+        Graph g = new Graph();
+        Node a = new Node(0, 1, "x.y", "c", "m", 2, 3, 4, 5, g);
+        assertThat(a.Serialize(), is(V));
     }
 }
 

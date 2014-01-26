@@ -30,6 +30,8 @@ package edu.cwru.jpdg;
  */
 
 import java.util.*;
+import java.io.*;
+import java.nio.charset.Charset;
 
 import soot.options.Options;
 
@@ -49,10 +51,6 @@ import edu.cwru.jpdg.graph.Graph;
 
 public class JPDG {
     public static void main(String[] args) {
-        System.out.println("x");
-        for (String a : args) {
-            System.out.print("  "); System.out.println(a);
-        }
         if (args.length != 2) {
             System.out.println("Must supply classpath and base-dir");
             System.exit(1);
@@ -86,7 +84,10 @@ public class JPDG {
         // O.setPhaseOption("wjtp.myTrans", "enabled:true");
         // O.setPhaseOption("jop", "enabled:true");
         // O.setPhaseOption("bb", "enabled:false");
-        O.set_output_format(O.output_format_shimple);
+        O.set_output_format(O.output_format_jimple);
+        O.set_keep_line_number(true);
+        O.set_keep_offset(true);
+        O.set_ignore_resolution_errors(true);
         // O.set_app(true);
 
 
@@ -100,64 +101,66 @@ public class JPDG {
 
         Graph<Block> g = new Graph<Block>();
 
-        System.out.println();
         for (soot.SootClass c : classes) {
-            System.out.println(c);
-            for (soot.SootMethod m : c.getMethods()) {
-                System.out.print("  ");
-                System.out.println(m);
-                System.out.print("    ");
-                soot.Body body = m.retrieveActiveBody();
-                System.out.println(body.getClass());
-                // ExceptionalBlockGraph ebg = new ExceptionalBlockGraph(body);
-                EnhancedBlockGraph ebg = new EnhancedBlockGraph(body);
-                add_cfg_cdg(g, ebg);
-                for (Iterator<Block> i = ebg.iterator(); i.hasNext(); ) {
-                    Block b = i.next();
-                    int uid = g.addNode(b);
-                    List<Block> succ = b.getSuccs();
-                    List<Block> pred = b.getPreds();
-                    System.out.print("      block "); System.out.println(b.getIndexInMethod());
-                    System.out.print("        succ");
-                    for (Block s : succ) {
-                        System.out.print(" ");
-                        System.out.print(s.getIndexInMethod());
-                    }
-                    System.out.println();
-                    System.out.print("        pred");
-                    for (Block p : pred) {
-                        System.out.print(" ");
-                        System.out.print(p.getIndexInMethod());
-                    }
-                    System.out.println();
-                }
-            }
-            System.out.println();
+            process_class(g, c);
         }
 
         // System.out.println();
         // for (soot.SootMethod m : S.getEntryPoints()) {
-        //     System.out.println(m);
+            // System.out.println(m);
         // }
 
         // System.out.println();
         // S.getCallGraph();
 
-        System.out.println();
-        System.out.println(g.Serialize());
+        byte[] graph = g.Serialize().getBytes(Charset.forName("UTF-8"));
+
+        FileOutputStream s = null;
+        try {
+            s = new FileOutputStream("out.pdg");
+            s.write(graph);
+        } catch (IOException ex) {
+            System.err.println(ex);
+        } finally {
+           try {s.close();} catch (Exception ex) {}
+        }
     }
 
-    public static void add_cfg_cdg(Graph g, EnhancedBlockGraph ebg) {
+    public static void process_class(Graph g, soot.SootClass c) {
+        for (soot.SootMethod m : c.getMethods()) {
+            try {
+                soot.Body body = m.retrieveActiveBody();
+                // ExceptionalBlockGraph ebg = new ExceptionalBlockGraph(body);
+                EnhancedBlockGraph ebg = new EnhancedBlockGraph(body);
+                add_cfg_cdg(g, c, m, ebg);
+            } catch (Exception e) {
+                System.err.println(e);
+            }
+        }
+    }
+
+    public static void add_cfg_cdg(Graph g, soot.SootClass c, soot.SootMethod m, EnhancedBlockGraph ebg) {
         Map<Integer,Set<Integer>> CD = new HashMap<Integer,Set<Integer>>();
         MHGPostDominatorsFinder pdf = new MHGPostDominatorsFinder(ebg);
         MHGDominatorTree pdom_tree = new MHGDominatorTree(pdf);
         CytronDominanceFrontier rdf = new CytronDominanceFrontier(pdom_tree);
         for (Iterator<Block> i = ebg.iterator(); i.hasNext(); ) {
             Block b = i.next();
-            int uid = g.nodeUID(b);
-            CD.put(uid, new HashSet<Integer>());
+            int uid_i = g.addNode(b, "", c.getPackageName(), c.getName(), m.getName(),
+                      b.getHead().getJavaSourceStartLineNumber(),
+                      b.getHead().getJavaSourceStartColumnNumber(),
+                      b.getTail().getJavaSourceStartLineNumber(),
+                      b.getTail().getJavaSourceStartColumnNumber()
+            );
+            CD.put(uid_i, new HashSet<Integer>());
             for (Block s : b.getSuccs()) {
-                g.addEdge(uid, g.nodeUID(s), "cfg");
+                int uid_s = g.addNode(s, "", c.getPackageName(), c.getName(), m.getName(),
+                          s.getHead().getJavaSourceStartLineNumber(),
+                          s.getHead().getJavaSourceStartColumnNumber(),
+                          s.getTail().getJavaSourceStartLineNumber(),
+                          s.getTail().getJavaSourceStartColumnNumber()
+                );
+                g.addEdge(uid_i, uid_s, "cfg");
             }
         }
         for (Iterator<Block> i = ebg.iterator(); i.hasNext(); ) {
@@ -165,7 +168,6 @@ public class JPDG {
             for (Object o : rdf.getDominanceFrontierOf(pdom_tree.getDode(y))) {
                 Block x = ((Block)((DominatorNode)o).getGode());
                 g.addEdge(g.nodeUID(x), g.nodeUID(y), "cdg");
-                System.out.printf("%d %d %s\n", g.nodeUID(x), g.nodeUID(y), "cdg");
             }
         }
     }
