@@ -99,7 +99,7 @@ public class JPDG {
 
         soot.util.Chain<soot.SootClass> classes = S.getApplicationClasses();
 
-        Graph<Block> g = new Graph<Block>();
+        Graph g = new Graph();
 
         for (soot.SootClass c : classes) {
             process_class(g, c);
@@ -140,34 +140,69 @@ public class JPDG {
     }
 
     public static void add_cfg_cdg(Graph g, soot.SootClass c, soot.SootMethod m, EnhancedBlockGraph ebg) {
-        Map<Integer,Set<Integer>> CD = new HashMap<Integer,Set<Integer>>();
         MHGPostDominatorsFinder pdf = new MHGPostDominatorsFinder(ebg);
         MHGDominatorTree pdom_tree = new MHGDominatorTree(pdf);
         CytronDominanceFrontier rdf = new CytronDominanceFrontier(pdom_tree);
+        int entry_uid = g.addNode(
+            c.getPackageName() + c.getName() + m.getName() + "_entry",
+            c.getPackageName(), c.getName(), m.getName(),
+            m.getJavaSourceStartLineNumber(),
+            m.getJavaSourceStartColumnNumber(),
+            m.getJavaSourceStartLineNumber(),
+            m.getJavaSourceStartColumnNumber()
+        );
+        HashMap<Integer,Integer> block_uids = new HashMap<Integer,Integer>();
         for (Iterator<Block> i = ebg.iterator(); i.hasNext(); ) {
             Block b = i.next();
-            int uid_i = g.addNode(b, "", c.getPackageName(), c.getName(), m.getName(),
-                      b.getHead().getJavaSourceStartLineNumber(),
-                      b.getHead().getJavaSourceStartColumnNumber(),
-                      b.getTail().getJavaSourceStartLineNumber(),
-                      b.getTail().getJavaSourceStartColumnNumber()
+            int uid = g.addNode(
+                c.getPackageName() + c.getName() + m.getName() + b.getIndexInMethod(),
+                c.getPackageName(), c.getName(), m.getName(),
+                b.getHead().getJavaSourceStartLineNumber(),
+                b.getHead().getJavaSourceStartColumnNumber(),
+                b.getTail().getJavaSourceStartLineNumber(),
+                b.getTail().getJavaSourceStartColumnNumber()
             );
-            CD.put(uid_i, new HashSet<Integer>());
+            System.out.println(c.getPackageName() + " " + c.getName() + " " + m.getName() + " " +
+                               ((Integer)b.getIndexInMethod()).toString() + " " + ((Integer)uid).toString());
+            block_uids.put(b.getIndexInMethod(), uid);
+        }
+        for (Block head : ebg.getHeads()) {
+            int head_uid = block_uids.get(head.getIndexInMethod());
+            g.addEdge(entry_uid, head_uid, "cfg");
+        }
+        for (Iterator<Block> i = ebg.iterator(); i.hasNext(); ) {
+            Block b = i.next();
+            int uid_i = block_uids.get(b.getIndexInMethod());
+            System.out.println(c.getPackageName() + " " + c.getName() + " " + m.getName() + " " +
+                               ((Integer)b.getIndexInMethod()).toString() + " " + ((Integer)uid_i).toString());
             for (Block s : b.getSuccs()) {
-                int uid_s = g.addNode(s, "", c.getPackageName(), c.getName(), m.getName(),
-                          s.getHead().getJavaSourceStartLineNumber(),
-                          s.getHead().getJavaSourceStartColumnNumber(),
-                          s.getTail().getJavaSourceStartLineNumber(),
-                          s.getTail().getJavaSourceStartColumnNumber()
-                );
+                int uid_s = block_uids.get(s.getIndexInMethod());
                 g.addEdge(uid_i, uid_s, "cfg");
+            }
+        }
+        HashMap<Integer,Boolean> has_parent = new HashMap<Integer,Boolean>();
+        for (Iterator<Block> i = ebg.iterator(); i.hasNext(); ) {
+            Block y = i.next();
+            int uid_y = block_uids.get(y.getIndexInMethod());
+            has_parent.put(uid_y, false);
+        }
+        for (Iterator<Block> i = ebg.iterator(); i.hasNext(); ) {
+            Block y = i.next();
+            int uid_y = block_uids.get(y.getIndexInMethod());
+            for (Object o : rdf.getDominanceFrontierOf(pdom_tree.getDode(y))) {
+                Block x = ((Block)((DominatorNode)o).getGode());
+                int uid_x = block_uids.get(x.getIndexInMethod());
+                g.addEdge(uid_x, uid_y, "cdg");
+                if (uid_x != uid_y) {
+                    has_parent.put(uid_y, true);
+                }
             }
         }
         for (Iterator<Block> i = ebg.iterator(); i.hasNext(); ) {
             Block y = i.next();
-            for (Object o : rdf.getDominanceFrontierOf(pdom_tree.getDode(y))) {
-                Block x = ((Block)((DominatorNode)o).getGode());
-                g.addEdge(g.nodeUID(x), g.nodeUID(y), "cdg");
+            int uid_y = block_uids.get(y.getIndexInMethod());
+            if (!has_parent.get(uid_y)) {
+                g.addEdge(entry_uid, uid_y, "cdg");
             }
         }
     }

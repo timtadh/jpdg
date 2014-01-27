@@ -37,12 +37,11 @@ import com.google.gson.Gson;
 /**
  * Represents a multi edged graph. Supports serialization and de-serialization
  */
-public class Graph<T> {
+public class Graph {
 
     int next_uid = 0;
 
     HashMap<Integer,Node> nodes = new HashMap<Integer,Node>();
-    HashMap<T,Integer> rnodes = new HashMap<T,Integer>();
     List<String> labels =
         new ArrayList<String>();
     HashMap<String,Integer> rlabels =
@@ -54,23 +53,12 @@ public class Graph<T> {
 
     public Graph() { }
 
-    public int addNode(T node, String label, String package_name, String class_name, String method_name, int start_l, int start_c, int end_l, int end_c) {
-        if (rnodes.containsKey(node)) {
-            return rnodes.get(node);
-        }
+    public int addNode(String label, String package_name, String class_name, String method_name, int start_l, int start_c, int end_l, int end_c) {
         int uid = next_uid;
         next_uid++;
         nodes.put(uid, new Node(uid, label_num(label), package_name, class_name, method_name, start_l, start_c, end_l, end_c, this));
-        rnodes.put(node, uid);
         node_labels.put(uid, label_num(label));
         return uid;
-    }
-
-    public int nodeUID(T node) {
-        if (rnodes.containsKey(node)) {
-            return rnodes.get(node);
-        }
-        throw new NoSuchElementException("uid has not yet been created");
     }
 
     private int label_num(String label) {

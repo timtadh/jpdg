@@ -64,7 +64,7 @@ public class Node {
     public String Serialize() {
         Map<String,Object> M = new LinkedHashMap<String,Object>();
         M.put("id", id);
-        M.put("label", label);
+        M.put("label", g.label(id));
         M.put("package_name", package_name);
         M.put("class_name", class_name);
         M.put("method_name", method_name);
