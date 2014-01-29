@@ -45,11 +45,11 @@ public class test_Graph {
       "vertex	{\"id\":0,\"label\":\"a\",\"package_name\":\"x.y\",\"class_name\":\"c\",\"method_name\":\"m\",\"start_line\":1,\"start_column\":-1,\"end_line\":2,\"end_column\":-1}\n" +
       "vertex	{\"id\":1,\"label\":\"b\",\"package_name\":\"x.y\",\"class_name\":\"c\",\"method_name\":\"m\",\"start_line\":1,\"start_column\":-1,\"end_line\":2,\"end_column\":-1}\n" +
       "vertex	{\"id\":2,\"label\":\"c\",\"package_name\":\"x.y\",\"class_name\":\"c\",\"method_name\":\"m\",\"start_line\":1,\"start_column\":-1,\"end_line\":2,\"end_column\":-1}\n" +
-      "edge	{\"src\":0,\"targ\":1,\"label\":\"cfg\",\"src_label\":0,\"targ_label\":1}\n" + 
-      "edge	{\"src\":0,\"targ\":2,\"label\":\"cfg\",\"src_label\":0,\"targ_label\":2}\n" + 
-      "edge	{\"src\":1,\"targ\":2,\"label\":\"cfg\",\"src_label\":1,\"targ_label\":2}\n" + 
-      "labels	[\"a\",\"b\",\"c\"]\n";
-    String E = "edge	{\"src\":0,\"targ\":1,\"label\":\"cfg\",\"src_label\":0,\"targ_label\":1}";
+      "edge	{\"src\":0,\"targ\":1,\"label\":\"cfg\",\"src_label\":\"a\",\"targ_label\":\"b\"}\n" + 
+      "edge	{\"src\":0,\"targ\":2,\"label\":\"cfg\",\"src_label\":\"a\",\"targ_label\":\"c\"}\n" + 
+      "edge	{\"src\":1,\"targ\":2,\"label\":\"cfg\",\"src_label\":\"b\",\"targ_label\":\"c\"}\n";
+      // "labels	[\"a\",\"b\",\"c\"]\n";
+    String E = "edge	{\"src\":0,\"targ\":1,\"label\":\"cfg\",\"src_label\":\"a\",\"targ_label\":\"b\"}";
     String V = "vertex	{\"id\":0,\"label\":\"a\",\"package_name\":\"x.y\",\"class_name\":\"c\",\"method_name\":\"m\",\"start_line\":2,\"start_column\":3,\"end_line\":4,\"end_column\":5}";
 
     @Test

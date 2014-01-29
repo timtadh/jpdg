@@ -125,9 +125,9 @@ public class Graph {
                 }
             }
         }
-        sb.append("labels\t");
-        sb.append((new Gson()).toJson(labels));
-        sb.append("\n");
+        //sb.append("labels\t");
+        //sb.append((new Gson()).toJson(labels));
+        //sb.append("\n");
         return sb.toString();
     }
 }

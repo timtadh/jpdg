@@ -52,8 +52,8 @@ public class Edge {
         M.put("src", src);
         M.put("targ", targ);
         M.put("label", label);
-        M.put("src_label", g.labelNum(src));
-        M.put("targ_label", g.labelNum(targ));
+        M.put("src_label", g.label(src));
+        M.put("targ_label", g.label(targ));
         return "edge\t" + (new Gson()).toJson(M);
     }
 }

@@ -40,6 +40,7 @@ import soot.jimple.toolkits.callgraph.CallGraph;
 import soot.jimple.toolkits.callgraph.Targets;
 
 import soot.toolkits.graph.Block;
+import soot.toolkits.graph.BlockGraph;
 import soot.toolkits.graph.ExceptionalBlockGraph;
 import soot.toolkits.graph.MHGPostDominatorsFinder;
 import soot.toolkits.graph.DominatorNode;
@@ -131,7 +132,7 @@ public class JPDG {
             try {
                 soot.Body body = m.retrieveActiveBody();
                 // ExceptionalBlockGraph ebg = new ExceptionalBlockGraph(body);
-                EnhancedBlockGraph ebg = new EnhancedBlockGraph(body);
+                BlockGraph ebg = new EnhancedBlockGraph(body);
                 add_cfg_cdg(g, c, m, ebg);
             } catch (Exception e) {
                 System.err.println(e);
@@ -139,7 +140,9 @@ public class JPDG {
         }
     }
 
-    public static void add_cfg_cdg(Graph g, soot.SootClass c, soot.SootMethod m, EnhancedBlockGraph ebg) {
+    public static void add_cfg_cdg(Graph g, soot.SootClass c, soot.SootMethod m, BlockGraph ebg) {
+        // This uses the CDG algorithm from the Cytron paper.
+
         MHGPostDominatorsFinder pdf = new MHGPostDominatorsFinder(ebg);
         MHGDominatorTree pdom_tree = new MHGDominatorTree(pdf);
         CytronDominanceFrontier rdf = new CytronDominanceFrontier(pdom_tree);
@@ -151,6 +154,8 @@ public class JPDG {
             m.getJavaSourceStartLineNumber(),
             m.getJavaSourceStartColumnNumber()
         );
+
+        // make nodes for every basic block
         HashMap<Integer,Integer> block_uids = new HashMap<Integer,Integer>();
         for (Iterator<Block> i = ebg.iterator(); i.hasNext(); ) {
             Block b = i.next();
@@ -166,10 +171,14 @@ public class JPDG {
                                ((Integer)b.getIndexInMethod()).toString() + " " + ((Integer)uid).toString());
             block_uids.put(b.getIndexInMethod(), uid);
         }
+
+        // add a path from the entry to each head in the graph
         for (Block head : ebg.getHeads()) {
             int head_uid = block_uids.get(head.getIndexInMethod());
             g.addEdge(entry_uid, head_uid, "cfg");
         }
+
+        // add cfg edges
         for (Iterator<Block> i = ebg.iterator(); i.hasNext(); ) {
             Block b = i.next();
             int uid_i = block_uids.get(b.getIndexInMethod());
@@ -180,12 +189,19 @@ public class JPDG {
                 g.addEdge(uid_i, uid_s, "cfg");
             }
         }
+
+        // initialize a map : uids -> bool indicating if there is a parent for
+        // the block in the cdg. If there isn't it is dependent on the dummy
+        // entry node.
         HashMap<Integer,Boolean> has_parent = new HashMap<Integer,Boolean>();
         for (Iterator<Block> i = ebg.iterator(); i.hasNext(); ) {
             Block y = i.next();
             int uid_y = block_uids.get(y.getIndexInMethod());
             has_parent.put(uid_y, false);
         }
+
+        // using Cytrons algorithm for each block, y, is dependent on another
+        // block, x, if x appears in y post-domanance frontier.
         for (Iterator<Block> i = ebg.iterator(); i.hasNext(); ) {
             Block y = i.next();
             int uid_y = block_uids.get(y.getIndexInMethod());
@@ -198,6 +214,9 @@ public class JPDG {
                 }
             }
         }
+
+        // finally all of those blocks without parents need to become dependent
+        // on the entry to the procedure.
         for (Iterator<Block> i = ebg.iterator(); i.hasNext(); ) {
             Block y = i.next();
             int uid_y = block_uids.get(y.getIndexInMethod());
