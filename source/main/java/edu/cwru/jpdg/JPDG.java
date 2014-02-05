@@ -41,12 +41,22 @@ import soot.jimple.toolkits.callgraph.Targets;
 
 import soot.toolkits.graph.Block;
 import soot.toolkits.graph.BlockGraph;
-import soot.toolkits.graph.ExceptionalBlockGraph;
+import soot.toolkits.graph.BriefBlockGraph;
+import soot.toolkits.graph.BriefUnitGraph;
 import soot.toolkits.graph.MHGPostDominatorsFinder;
 import soot.toolkits.graph.DominatorNode;
 import soot.toolkits.graph.CytronDominanceFrontier;
 import soot.toolkits.graph.pdg.EnhancedBlockGraph;
 import soot.toolkits.graph.pdg.MHGDominatorTree;
+
+import soot.toolkits.scalar.SimpleLiveLocals;
+import soot.toolkits.scalar.SmartLocalDefs;
+import soot.toolkits.scalar.SimpleLocalUses;
+import soot.toolkits.scalar.UnitValueBoxPair;
+
+import soot.jimple.DefinitionStmt;
+import soot.jimple.internal.JimpleLocal;
+import soot.jimple.internal.JimpleLocalBox;
 
 import edu.cwru.jpdg.graph.Graph;
 
@@ -89,6 +99,7 @@ public class JPDG {
         O.set_keep_line_number(true);
         O.set_keep_offset(true);
         O.set_ignore_resolution_errors(true);
+        O.set_verbose(false);
         // O.set_app(true);
 
 
@@ -133,19 +144,20 @@ public class JPDG {
                 soot.Body body = m.retrieveActiveBody();
                 // ExceptionalBlockGraph ebg = new ExceptionalBlockGraph(body);
                 BlockGraph ebg = new EnhancedBlockGraph(body);
-                add_cfg_cdg(g, c, m, ebg);
+                add_cfg_cdg(g, c, m, body, ebg);
             } catch (Exception e) {
                 System.err.println(e);
             }
         }
     }
 
-    public static void add_cfg_cdg(Graph g, soot.SootClass c, soot.SootMethod m, BlockGraph ebg) {
+    public static void add_cfg_cdg(Graph g, soot.SootClass c, soot.SootMethod m, soot.Body body, BlockGraph cfg) {
         // This uses the CDG algorithm from the Cytron paper.
 
-        MHGPostDominatorsFinder pdf = new MHGPostDominatorsFinder(ebg);
+        MHGPostDominatorsFinder pdf = new MHGPostDominatorsFinder(cfg);
         MHGDominatorTree pdom_tree = new MHGDominatorTree(pdf);
         CytronDominanceFrontier rdf = new CytronDominanceFrontier(pdom_tree);
+
         int entry_uid = g.addNode(
             c.getPackageName() + c.getName() + m.getName() + "_entry",
             c.getPackageName(), c.getName(), m.getName(),
@@ -157,7 +169,7 @@ public class JPDG {
 
         // make nodes for every basic block
         HashMap<Integer,Integer> block_uids = new HashMap<Integer,Integer>();
-        for (Iterator<Block> i = ebg.iterator(); i.hasNext(); ) {
+        for (Iterator<Block> i = cfg.iterator(); i.hasNext(); ) {
             Block b = i.next();
             int uid = g.addNode(
                 c.getPackageName() + c.getName() + m.getName() + b.getIndexInMethod(),
@@ -167,23 +179,29 @@ public class JPDG {
                 b.getTail().getJavaSourceStartLineNumber(),
                 b.getTail().getJavaSourceStartColumnNumber()
             );
-            System.out.println(c.getPackageName() + " " + c.getName() + " " + m.getName() + " " +
-                               ((Integer)b.getIndexInMethod()).toString() + " " + ((Integer)uid).toString());
             block_uids.put(b.getIndexInMethod(), uid);
         }
 
+        HashMap<soot.Unit,Block> unit_to_blk = new HashMap<soot.Unit,Block>();
+        for (Iterator<Block> i = cfg.iterator(); i.hasNext(); ) {
+            Block b = i.next();
+            int b_uid = block_uids.get(b.getIndexInMethod());
+            for (Iterator<soot.Unit> iu = b.iterator(); iu.hasNext(); ) {
+                soot.Unit u = iu.next();
+                unit_to_blk.put(u, b);
+            }
+        }
+
         // add a path from the entry to each head in the graph
-        for (Block head : ebg.getHeads()) {
+        for (Block head : cfg.getHeads()) {
             int head_uid = block_uids.get(head.getIndexInMethod());
             g.addEdge(entry_uid, head_uid, "cfg");
         }
 
         // add cfg edges
-        for (Iterator<Block> i = ebg.iterator(); i.hasNext(); ) {
+        for (Iterator<Block> i = cfg.iterator(); i.hasNext(); ) {
             Block b = i.next();
             int uid_i = block_uids.get(b.getIndexInMethod());
-            System.out.println(c.getPackageName() + " " + c.getName() + " " + m.getName() + " " +
-                               ((Integer)b.getIndexInMethod()).toString() + " " + ((Integer)uid_i).toString());
             for (Block s : b.getSuccs()) {
                 int uid_s = block_uids.get(s.getIndexInMethod());
                 g.addEdge(uid_i, uid_s, "cfg");
@@ -194,7 +212,7 @@ public class JPDG {
         // the block in the cdg. If there isn't it is dependent on the dummy
         // entry node.
         HashMap<Integer,Boolean> has_parent = new HashMap<Integer,Boolean>();
-        for (Iterator<Block> i = ebg.iterator(); i.hasNext(); ) {
+        for (Iterator<Block> i = cfg.iterator(); i.hasNext(); ) {
             Block y = i.next();
             int uid_y = block_uids.get(y.getIndexInMethod());
             has_parent.put(uid_y, false);
@@ -202,7 +220,7 @@ public class JPDG {
 
         // using Cytrons algorithm for each block, y, is dependent on another
         // block, x, if x appears in y post-domanance frontier.
-        for (Iterator<Block> i = ebg.iterator(); i.hasNext(); ) {
+        for (Iterator<Block> i = cfg.iterator(); i.hasNext(); ) {
             Block y = i.next();
             int uid_y = block_uids.get(y.getIndexInMethod());
             for (Object o : rdf.getDominanceFrontierOf(pdom_tree.getDode(y))) {
@@ -217,12 +235,83 @@ public class JPDG {
 
         // finally all of those blocks without parents need to become dependent
         // on the entry to the procedure.
-        for (Iterator<Block> i = ebg.iterator(); i.hasNext(); ) {
+        for (Iterator<Block> i = cfg.iterator(); i.hasNext(); ) {
             Block y = i.next();
             int uid_y = block_uids.get(y.getIndexInMethod());
             if (!has_parent.get(uid_y)) {
                 g.addEdge(entry_uid, uid_y, "cdg");
             }
         }
+
+        System.out.println(c.getPackageName() + " " + c.getName() + " " + m.getName());
+        HashMap<Integer,List<soot.ValueBox>> live_vars = new HashMap<Integer,List<soot.ValueBox>>();
+        BriefUnitGraph bug = new BriefUnitGraph(body);
+        SimpleLiveLocals sll = new SimpleLiveLocals(bug);
+        SmartLocalDefs sld = new SmartLocalDefs(bug, sll);
+        SimpleLocalUses slu = new SimpleLocalUses(bug, sld);
+        for (Iterator<Block> i = cfg.iterator(); i.hasNext(); ) {
+            HashMap<Integer,List<DefinitionStmt>> defining_stmts = new HashMap<Integer,List<DefinitionStmt>>();
+            Block b = i.next();
+            int uid_b = block_uids.get(b.getIndexInMethod());
+            System.out.println("Block" + b.getIndexInMethod());
+            for (Iterator<soot.Unit> it = b.iterator(); it.hasNext(); ) {
+                soot.Unit u = it.next();
+                System.out.println(u);
+                if (u instanceof DefinitionStmt) {
+                    DefinitionStmt def_stmt = (DefinitionStmt)u;
+                    JimpleLocal var  = (JimpleLocal)def_stmt.getLeftOp();
+                    System.out.print("++ ");
+                    printJimpleLocal(var);
+                    System.out.println();
+                    if (!defining_stmts.containsKey(var.getNumber())) {
+                        defining_stmts.put(var.getNumber(), new ArrayList<DefinitionStmt>());
+                    }
+                    defining_stmts.get(var.getNumber()).add(def_stmt);
+                }
+            }
+            System.out.println();
+            List<JimpleLocal> values = sll.getLiveLocalsAfter(b.getTail());
+            System.out.print("block tail " + b.getTail());
+            System.out.print(">> ");
+            for (JimpleLocal value : values) {
+                printJimpleLocal(value);
+                System.out.print(" ");
+                if (defining_stmts.containsKey(value.getNumber())) {
+                    List<DefinitionStmt> def_stmts =  defining_stmts.get(value.getNumber());
+                    for (DefinitionStmt def_stmt : def_stmts) {
+                        System.out.print(def_stmt + " ");
+                        List<UnitValueBoxPair> uses = slu.getUsesOf(def_stmt);
+                        for (UnitValueBoxPair u : uses) {
+                            Block ub = unit_to_blk.get(u.unit);
+                            int uid_ub = block_uids.get(ub.getIndexInMethod());
+                            System.out.print("{" + u.unit + "::block-" + ub.getIndexInMethod() + "} ");
+                            if (uid_b != uid_ub) {
+                                g.addEdge(uid_b, uid_ub, "ddg");
+                            }
+                        }
+                        System.out.print("; ");
+                    }
+                    /* Now all we need to do is find the blocks the which use
+                     * the value from the defining_stmt and hook them up.
+                     */
+                } else {
+                    System.out.print("no-def-in-block");
+                }
+                System.out.print(", ");
+            }
+            System.out.println();
+            System.out.println();
+            System.out.println();
+
+        }
+        System.out.println();
+    }
+
+    public static void printJimpleLocal(JimpleLocal jl) {
+        System.out.print(jl.getName());
+        System.out.print(":");
+        System.out.print(jl.getType());
+        System.out.print(":");
+        System.out.print(jl.getNumber());
     }
 }
