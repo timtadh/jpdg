@@ -107,7 +107,8 @@ public class pDG_Builder {
         for (Iterator<Block> i = cfg.iterator(); i.hasNext(); ) {
             Block b = i.next();
             int uid = g.addNode(
-                klass.getPackageName() + klass.getName() + method.getName() + b.getIndexInMethod(),
+                // klass.getPackageName() + klass.getName() + method.getName() + b.getIndexInMethod(),
+                b.toString(),
                 klass.getPackageName(), klass.getName(), method.getName(),
                 b.getHead().getJavaSourceStartLineNumber(),
                 b.getHead().getJavaSourceStartColumnNumber(),
@@ -190,7 +191,7 @@ public class pDG_Builder {
     }
 
     void build_ddg() {
-        System.out.println(klass.getPackageName() + " " + klass.getName() + " " + method.getName());
+        System.out.println("building ddg for " + klass.getPackageName() + " " + klass.getName() + " " + method.getName());
         BriefUnitGraph bug = new BriefUnitGraph(body);
         SimpleLiveLocals sll = new SimpleLiveLocals(bug);
         SmartLocalDefs sld = new SmartLocalDefs(bug, sll);
@@ -199,55 +200,62 @@ public class pDG_Builder {
             HashMap<Integer,List<DefinitionStmt>> defining_stmts = new HashMap<Integer,List<DefinitionStmt>>();
             Block b = i.next();
             int uid_b = block_uids.get(b.getIndexInMethod());
-            System.out.println("Block" + b.getIndexInMethod());
+            // System.out.println("Block" + b.getIndexInMethod());
             for (Iterator<soot.Unit> it = b.iterator(); it.hasNext(); ) {
                 soot.Unit u = it.next();
-                System.out.println(u);
+                // System.out.println(u);
                 if (u instanceof DefinitionStmt) {
                     DefinitionStmt def_stmt = (DefinitionStmt)u;
-                    JimpleLocal var  = (JimpleLocal)def_stmt.getLeftOp();
-                    System.out.print("++ ");
-                    printJimpleLocal(var);
-                    System.out.println();
+                    soot.Local var = null;
+                    try {
+                        var  = (soot.Local)def_stmt.getLeftOp();
+                    } catch (java.lang.ClassCastException e) {
+                        System.err.println("LeftOp was not a local");
+                        System.err.println(def_stmt.getLeftOp());
+                        continue;
+                    }
+                    // System.out.print("++ ");
+                    // printJimpleLocal(var);
+                    // System.out.println();
                     if (!defining_stmts.containsKey(var.getNumber())) {
                         defining_stmts.put(var.getNumber(), new ArrayList<DefinitionStmt>());
                     }
                     defining_stmts.get(var.getNumber()).add(def_stmt);
                 }
             }
-            System.out.println();
-            List<JimpleLocal> values = sll.getLiveLocalsAfter(b.getTail());
-            System.out.print("block tail " + b.getTail());
-            System.out.print(">> ");
-            for (JimpleLocal value : values) {
-                printJimpleLocal(value);
-                System.out.print(" ");
+            // System.out.println();
+            List<soot.Local> values = sll.getLiveLocalsAfter(b.getTail());
+            // System.out.print("block tail " + b.getTail());
+            // System.out.print(">> ");
+            for (soot.Local value : values) {
+                // printJimpleLocal(value);
+                // System.out.print(" ");
                 if (defining_stmts.containsKey(value.getNumber())) {
                     List<DefinitionStmt> def_stmts =  defining_stmts.get(value.getNumber());
                     for (DefinitionStmt def_stmt : def_stmts) {
-                        System.out.print(def_stmt + " ");
+                        // System.out.print(def_stmt + " ");
                         List<UnitValueBoxPair> uses = slu.getUsesOf(def_stmt);
                         for (UnitValueBoxPair u : uses) {
                             Block ub = unit_to_blk.get(u.unit);
                             int uid_ub = block_uids.get(ub.getIndexInMethod());
-                            System.out.print("{" + u.unit + "::block-" + ub.getIndexInMethod() + "} ");
+                            // System.out.print("{" + u.unit + "::block-" + ub.getIndexInMethod() + "} ");
                             if (uid_b != uid_ub) {
                                 g.addEdge(uid_b, uid_ub, "ddg");
                             }
                         }
-                        System.out.print("; ");
+                        // System.out.print("; ");
                     }
                     /* Now all we need to do is find the blocks the which use
                      * the value from the defining_stmt and hook them up.
                      */
                 } else {
-                    System.out.print("no-def-in-block");
+                    // System.out.print("no-def-in-block");
                 }
-                System.out.print(", ");
+                // System.out.print(", ");
             }
-            System.out.println();
-            System.out.println();
-            System.out.println();
+            // System.out.println();
+            // System.out.println();
+            // System.out.println();
         }
     }
 
