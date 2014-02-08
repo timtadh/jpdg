@@ -1,0 +1,165 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+#Author: Tim Henderson
+#Email: tim.tadh@gmail.com
+#For licensing see the LICENSE file in the top level directory.
+
+import os, sys, time, subprocess
+from getopt import getopt, GetoptError
+import csv, json, cgi
+
+__version__ = 'git master'
+
+error_codes = {
+    'usage':1,
+    'file_not_found':2,
+    'option':3,
+    'args':4,
+    'version':5,
+    'database':6,
+}
+
+usage_message = \
+'''usage: dotty'''
+
+extended_message = \
+'''
+makes a dot file
+
+you might use it like this:
+
+    tojson -p vertex,edge vertices.csv edges.csv | conv -f surfer | dotty
+
+Options
+
+    -h, help                            print this message
+    -v, version                         print the version
+
+'''
+
+def log(*msgs):
+    for msg in msgs:
+        print >>sys.stderr, msg,
+    print >>sys.stderr
+    sys.stderr.flush()
+
+def output(*msgs):
+    for msg in msgs:
+        sys.stdout.write(str(msg))
+        sys.stdout.write(' ')
+    sys.stdout.write('\n')
+    sys.stdout.flush()
+
+def version():
+    '''Print version and exits'''
+    log('version :', __version__)
+    sys.exit(error_codes['version'])
+
+def usage(code=None):
+    '''Prints the usage and exits with an error code specified by code. If code
+    is not given it exits with error_codes['usage']'''
+    log(usage_message)
+    if code is None:
+        log(extended_message)
+        code = error_codes['usage']
+    sys.exit(code)
+
+def assert_file_exists(path):
+  '''checks if the file exists. If it doesn't causes the program to exit.
+  @param path : path to file
+  @returns : the path to the file (an echo) [only on success]
+  '''
+  path = os.path.abspath(os.path.expanduser(path))
+  if not os.path.exists(path):
+    log('No file found. "%(path)s"' % locals())
+    usage(error_codes['file_not_found'])
+  return path
+
+def assert_dir_exists(path):
+    '''checks if a directory exists. if not it creates it. if something exists
+    and it is not a directory it exits with an error.
+    '''
+    path = os.path.abspath(path)
+    if not os.path.exists(path):
+        os.mkdir(path)
+    elif not os.path.isdir(path):
+        log('Expected a directory found a file. "%(path)s"' % locals())
+        usage(error_codes['file_instead_of_dir'])
+    return path
+
+def delete_file_if_exists(path):
+    if os.path.exists(path):
+        os.unlink(path)
+    return path
+
+def dotty(inf, of):
+
+    def string(label):
+        label = (
+            label.replace("'", "\\'").
+            replace('"', '\\"').
+            replace('\n', '\\n')
+        )
+        label = cgi.escape(label).encode('ascii', 'xmlcharrefreplace')
+        s = ''.join(
+            '<tr><td align="left">' + line + "</td></tr>"
+            for line in label.split('\\n')
+        )
+        return s
+    def edge(line):
+        of.write('n%d->n%d [label="%s"];\n' % (line['src'], line['targ'],
+        line['label']))
+    def vertex(line):
+        template = 'n%d [shape=rect, fontname="Courier", label=<<table border="0">%s</table>>];\n'
+        of.write(template % (line['id'], string(line['label'])))
+
+    of.write('digraph G {\n')
+    for i, line in enumerate(inf):
+        lt, data = line.split('\t', 1)
+        data = json.loads(data)
+        if i % 100 == 0: print >>sys.stderr, i, lt
+        if lt == 'edge':
+            edge(data)
+        elif lt == 'vertex':
+            vertex(data)
+        elif lt == 'labels':
+            pass
+        else:
+            raise Exception, "Unexpected line time %s" % lt
+    of.write('\n}\n')
+
+def main(args):
+
+    short_opts =  'hv'
+    long_opts = [
+      'help', 'version',
+    ]
+
+    try:
+        opts, args = getopt(args, short_opts, long_opts)
+    except GetoptError, err:
+        log(err)
+        usage(error_codes['option'])
+
+    for opt, arg in opts:
+        if opt in ('-h', '--help'):
+            usage()
+        elif opt in ('-v', '--version'):
+            version()
+
+    of = sys.stdout
+    inf = sys.stdin
+
+    try:
+        dotty(inf, of)
+    except IOError, e:
+        if e.errno == 32:
+            sys.exit(0)
+        raise e
+    finally:
+        of.close()
+        inf.close()
+
+if __name__ == '__main__':
+    main(sys.argv[1:])
+

@@ -74,6 +74,11 @@ public class pDG_Builder {
         self.build_pDG();
     }
 
+    static pDG_Builder test_instance() {
+        return new pDG_Builder();
+    }
+
+    private pDG_Builder() {}
 
     private pDG_Builder(Graph g, soot.SootClass c, soot.SootMethod m, soot.Body body, BlockGraph cfg) {
         this.g = g;
@@ -81,14 +86,6 @@ public class pDG_Builder {
         this.method = m;
         this.body = body;
         this.cfg = cfg;
-        this.entry_uid = g.addNode(
-            c.getPackageName() + c.getName() + m.getName() + "_entry",
-            c.getPackageName(), c.getName(), m.getName(),
-            m.getJavaSourceStartLineNumber(),
-            m.getJavaSourceStartColumnNumber(),
-            m.getJavaSourceStartLineNumber(),
-            m.getJavaSourceStartColumnNumber()
-        );
         this.init();
     }
 
@@ -104,17 +101,26 @@ public class pDG_Builder {
     }
 
     void assign_uids() {
+        this.entry_uid = g.addNode(
+            method.getSignature() + "-entry",
+            klass.getPackageName(), klass.getName(), method.getSignature(),
+            method.getJavaSourceStartLineNumber(),
+            method.getJavaSourceStartColumnNumber(),
+            method.getJavaSourceStartLineNumber(),
+            method.getJavaSourceStartColumnNumber()
+        );
         for (Iterator<Block> i = cfg.iterator(); i.hasNext(); ) {
             Block b = i.next();
             int uid = g.addNode(
                 // klass.getPackageName() + klass.getName() + method.getName() + b.getIndexInMethod(),
-                b.toString(),
-                klass.getPackageName(), klass.getName(), method.getName(),
+                "",
+                klass.getPackageName(), klass.getName(), method.getSignature(),
                 b.getHead().getJavaSourceStartLineNumber(),
                 b.getHead().getJavaSourceStartColumnNumber(),
                 b.getTail().getJavaSourceStartLineNumber(),
                 b.getTail().getJavaSourceStartColumnNumber()
             );
+            g.setLabel(uid, "block uid: " + uid + "\n" + b.toString());
             block_uids.put(b.getIndexInMethod(), uid);
         }
     }

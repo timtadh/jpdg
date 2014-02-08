@@ -57,8 +57,8 @@ import org.apache.commons.lang.StringUtils;
 
 public class Javac {
 
-    private static final String cwd = System.getProperty("user.dir");
-    private static final String pathsep =
+    static final String cwd = System.getProperty("user.dir");
+    static final String pathsep =
         System.getProperty("file.separator");
 
     /**
@@ -94,7 +94,7 @@ public class Javac {
         return StringUtils.join(lines, "\n");
     }
 
-    private static void create_dir(Path dir) {
+    static void create_dir(Path dir) {
         try {
             Files.createDirectory(dir);
         } catch (IOException e) {
@@ -189,7 +189,7 @@ public class Javac {
      * resources (see `Javac.load` for details). It uses `load` to get the
      * file and `javac` to compile it. It then loads up the classes using soot.
      *
-     * @returns HashMap : package_name -> JavaClass
+     * @returns HashMap : package_name - JavaClass
      */
     public static HashMap<String, soot.SootClass> classes(String full_name) {
         String[] split = StringUtils.split(full_name, ".");

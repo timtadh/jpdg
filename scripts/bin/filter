@@ -1,0 +1,200 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+#Author: Tim Henderson
+#Email: tim.tadh@hackthology.com
+#For licensing see the LICENSE file in the top level directory.
+
+import os, sys, time, subprocess
+from getopt import getopt, GetoptError
+import csv, json
+
+import numpy as np
+from scipy import stats
+
+from pybptree import bptree
+from fsmjob import LabelsTree, VerticesTree, EdgesTree, ReverseEdgesTree
+
+__version__ = 'git master'
+
+error_codes = {
+    'usage':1,
+    'file_not_found':2,
+    'option':3,
+    'args':4,
+    'version':5,
+    'database':6,
+    'bad_int':6,
+    'bad_float':7,
+}
+
+usage_message = \
+'''usage: load_bptree'''
+
+extended_message = \
+'''
+filters out vertices and edges without enough support
+
+you might use it like this:
+
+    tojson -p vertex,edge vertices.csv edges.csv | conv -f surfer | filter -s 2
+
+Options
+
+    -h, help                            print this message
+    -v, version                         print the version
+    -s, support                         support needed (int)
+
+'''
+
+def log(*msgs):
+    for msg in msgs:
+        print >>sys.stderr, msg,
+    print >>sys.stderr
+    sys.stderr.flush()
+
+def output(*msgs):
+    for msg in msgs:
+        sys.stdout.write(str(msg))
+        sys.stdout.write(' ')
+    sys.stdout.write('\n')
+    sys.stdout.flush()
+
+def version():
+    '''Print version and exits'''
+    log('version :', __version__)
+    sys.exit(error_codes['version'])
+
+def usage(code=None):
+    '''Prints the usage and exits with an error code specified by code. If code
+    is not given it exits with error_codes['usage']'''
+    log(usage_message)
+    if code is None:
+        log(extended_message)
+        code = error_codes['usage']
+    sys.exit(code)
+
+def assert_file_exists(path):
+  '''checks if the file exists. If it doesn't causes the program to exit.
+  @param path : path to file
+  @returns : the path to the file (an echo) [only on success]
+  '''
+  path = os.path.abspath(os.path.expanduser(path))
+  if not os.path.exists(path):
+    log('No file found. "%(path)s"' % locals())
+    usage(error_codes['file_not_found'])
+  return path
+
+def assert_dir_exists(path):
+    '''checks if a directory exists. if not it creates it. if something exists
+    and it is not a directory it exits with an error.
+    '''
+    path = os.path.abspath(path)
+    if not os.path.exists(path):
+        os.mkdir(path)
+    elif not os.path.isdir(path):
+        log('Expected a directory found a file. "%(path)s"' % locals())
+        usage(error_codes['file_instead_of_dir'])
+    return path
+
+def delete_file_if_exists(path):
+    if os.path.exists(path):
+        os.unlink(path)
+    return path
+
+def parse_float(s):
+    '''parses s to check it is an float. returns the appropriate
+    float. If it isn't an float prints error and exits.
+    @param s : a string
+    @returns float
+    '''
+    try:
+        return float(s)
+    except:
+        log('Expected int found "%s"' % (s))
+        usage(error_codes['bad_float'])
+
+def filter(support, inf, of):
+    lines = [line for line in inf]
+    labels = json.loads(lines[-1].split('\t')[1])
+    sizes = np.array([label['count'] for label in labels])
+    dist = stats.norm(np.mean(sizes), np.std(sizes))
+    support = dist.ppf(support)
+    log("support =", support)
+
+    def edge(line):
+        if labels[line['src_label']]['count'] < support: return
+        if labels[line['targ_label']]['count'] < support: return
+        of.write('edge')
+        of.write('\t')
+        json.dump(line, of)
+        of.write('\n')
+    def vertex(line):
+        if labels[line['label']]['count'] < support: return
+        of.write('vertex')
+        of.write('\t')
+        json.dump(line, of)
+        of.write('\n')
+    def label(line):
+        of.write('labels')
+        of.write('\t')
+        json.dump(line, of)
+        of.write('\n')
+
+    for i, line in enumerate(lines):
+        lt, data = line.split('\t', 1)
+        data = json.loads(data)
+        if i % 100 == 0: print >>sys.stderr, i, lt
+        if lt == 'edge':
+            edge(data)
+        elif lt == 'vertex':
+            vertex(data)
+        elif lt == 'labels':
+            label(data)
+        else:
+            raise Exception, "Unexpected line time %s" % lt
+
+def main(args):
+
+    short_opts =  'hvs:'
+    long_opts = [
+      'help', 'version', 'support=',
+    ]
+
+    try:
+        opts, args = getopt(args, short_opts, long_opts)
+    except GetoptError, err:
+        log(err)
+        usage(error_codes['option'])
+
+    support = None
+    for opt, arg in opts:
+        if opt in ('-h', '--help'):
+            usage()
+        elif opt in ('-v', '--version'):
+            version()
+        elif opt in ('-s', '--support'):
+            support = parse_float(arg)
+            if support <= 0 or support >= 1:
+                log('support must be between 0 and 1')
+                usage(error_codes['option'])
+
+    if support is None:
+        log('support is required')
+        usage(error_codes['option'])
+
+    of = sys.stdout
+    inf = sys.stdin
+
+    try:
+        filter(support, inf, of)
+    except IOError, e:
+        if e.errno == 32:
+            sys.exit(0)
+        raise e
+    finally:
+        of.close()
+        inf.close()
+
+if __name__ == '__main__':
+    main(sys.argv[1:])
+

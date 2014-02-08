@@ -1,4 +1,4 @@
-package test.parse;
+package test.cfg;
 
 /* Tim Henderson (tadh@case.edu)
  *
@@ -29,12 +29,20 @@ package test.parse;
  *   http://www.gnu.org/licenses/lgpl-2.1.html
  */ 
 
-public class HelloWorld {
+public class CFG {
 
-    public static void main(String[] args) {
-        System.out.println("Hello World!");
+    public static int fib(int x) {
+        int prev = 0;
+        int cur = 1;
+        if (x == 0) {
+            cur = 0;
+        } else {
+            for (int i = 1; i < x; i = i + 1) {
+                int next = prev + cur;
+                prev = cur;
+                cur = next;
+            }
+        }
+        return cur;
     }
-
 }
-
-class ExtraHelloWorld {}

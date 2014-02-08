@@ -77,10 +77,19 @@ public class JPDG {
     }
 
     public static soot.Scene runSoot(String cp, List<String> dirs) {
+        soot.G.reset();
         addPacks();
         soot.Scene S = soot.Scene.v();
         Options O = Options.v();
+        configure_and_run_soot(S, O, cp, dirs);
 
+        // System.out.println();
+        // S.getCallGraph();
+
+        return S;
+    }
+
+    public static void configure_and_run_soot(soot.Scene S, Options O, String cp, List<String> dirs) {
         O.set_soot_classpath(cp);
         O.set_process_dir(dirs);
         // O.set_exclude(excluded);
@@ -99,16 +108,6 @@ public class JPDG {
 
         S.loadNecessaryClasses();
         soot.PackManager.v().runPacks();
-
-        // System.out.println();
-        // for (soot.SootMethod m : S.getEntryPoints()) {
-            // System.out.println(m);
-        // }
-
-        // System.out.println();
-        // S.getCallGraph();
-
-        return S;
     }
 
     public static void addPacks() {

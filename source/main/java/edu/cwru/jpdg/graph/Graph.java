@@ -108,6 +108,16 @@ public class Graph {
         edges.get(type).get(a).add(b);
     }
 
+    public boolean hasEdge(int a, int b, String type) {
+        if (!edges.containsKey(type)) {
+            return false;
+        }
+        if (!edges.get(type).containsKey(a)) {
+            return false;
+        }
+        return edges.get(type).get(a).contains(b);
+    }
+
     public String Serialize() {
         StringBuilder sb = new StringBuilder();
         for (Node n : nodes.values()) {

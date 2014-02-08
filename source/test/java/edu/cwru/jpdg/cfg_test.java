@@ -39,46 +39,36 @@ import org.junit.Before;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-import java.util.Arrays;
-import java.util.HashSet;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.List;
-import java.util.ArrayList;
-import java.util.LinkedList;
-import java.util.Random;
-import java.security.MessageDigest;
+import java.util.*;
 
-import org.apache.commons.codec.binary.Hex;
+import soot.toolkits.graph.pdg.EnhancedBlockGraph;
 
-import edu.cwru.jpdg.Javac;
+import edu.cwru.jpdg.graph.Graph;
+import edu.cwru.jpdg.pDG_Builder;
 
-
-public class test_Javac {
+public class cfg_test {
 
     @Test
-    public void test_load()
-    throws java.io.IOException, java.security.NoSuchAlgorithmException {
-        MessageDigest md = MessageDigest.getInstance("SHA-1");
-        md.update(Javac.load("test.parse.HelloWorld").getBytes());
-        String digest = new String(Hex.encodeHex(md.digest()));
-        assertEquals("78a4a77858a56e7ac75c04f395284592af5c624c", digest);
-    }
+    public void test_fib_cfg() {
+        pDG_Builder pDG = pDG_Builder.test_instance();
+        pDG.g = new Graph();
+        soot.SootClass cfg_klass = Javac.classes("test.cfg.CFG").get("test.cfg.CFG");
+        pDG.klass = cfg_klass;
+        pDG.method = cfg_klass.getMethodByName("fib");
+        pDG.body = pDG.method.retrieveActiveBody();
+        pDG.cfg = new EnhancedBlockGraph(pDG.body);
+        pDG.assign_uids();
+        pDG.build_cfg();
+        Dotty.graphviz("fib_cfg", Dotty.dotty(pDG.g.Serialize()));
 
-    @Test
-    public void test_classes()
-    throws java.io.IOException,
-      java.security.NoSuchAlgorithmException {
-        Map<String, soot.SootClass> classes =
-            Javac.classes("test.parse.HelloWorld");
-        assertThat(classes.size(), is(2));
-        assertThat(
-            classes.get("test.parse.HelloWorld").getName(),
-            is("test.parse.HelloWorld")
-        );
-        assertThat(
-            classes.get("test.parse.ExtraHelloWorld").getName(),
-            is("test.parse.ExtraHelloWorld")
-        );
+        assertThat(pDG.g.hasEdge(0, 1, "cfg"), is(true));
+        assertThat(pDG.g.hasEdge(1, 2, "cfg"), is(true));
+        assertThat(pDG.g.hasEdge(1, 3, "cfg"), is(true));
+        assertThat(pDG.g.hasEdge(2, 6, "cfg"), is(true));
+        assertThat(pDG.g.hasEdge(3, 4, "cfg"), is(true));
+        assertThat(pDG.g.hasEdge(4, 6, "cfg"), is(true));
+        assertThat(pDG.g.hasEdge(4, 5, "cfg"), is(true));
+        assertThat(pDG.g.hasEdge(5, 4, "cfg"), is(true));
     }
 }
+

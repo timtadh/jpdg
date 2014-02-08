@@ -1,0 +1,310 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+#Author: Tim Henderson
+#Email: tim.tadh@hackthology.com
+#For licensing see the LICENSE file in the top level directory.
+
+import os, sys, time, subprocess
+from getopt import getopt, GetoptError
+import csv, json
+
+__version__ = 'git master'
+
+error_codes = {
+    'usage':1,
+    'file_not_found':2,
+    'option':3,
+    'args':4,
+    'version':5,
+    'database':6,
+}
+
+usage_message = \
+'''usage: conv -f <format>'''
+
+extended_message = \
+'''
+converts a json file in the specified format to the standard input format for
+pmine.
+
+you might use it like this:
+
+    tojson -p vertex,edge vertices.csv edges.csv | conv -f surfer | pmine
+
+Options
+
+    -h, help                            print this message
+    -v, version                         print the version
+    -f, format=<format>                 specify the input format
+
+Formats
+
+    surfer                              code surfer based format
+        tojson -p vertex,edge vertices.csv edges.csv | conv -f surfer
+
+        vertices.csv schema =
+            ID,FUNC_NAME,PATH,LINE,VERTEX_TYPE,VERTEX_LABEL
+        edges.csv schema =
+            EDGE_TYPE,SRC,TARG,SRC_TYPE,SRC_LABEL,TARG_KIND,TARG_LABEL,PATH,
+            FUNC_NAME
+'''
+
+def log(*msgs):
+    for msg in msgs:
+        print >>sys.stderr, msg,
+    print >>sys.stderr
+    sys.stderr.flush()
+
+def output(*msgs):
+    for msg in msgs:
+        sys.stdout.write(str(msg))
+        sys.stdout.write(' ')
+    sys.stdout.write('\n')
+    sys.stdout.flush()
+
+def version():
+    '''Print version and exits'''
+    log('version :', __version__)
+    sys.exit(error_codes['version'])
+
+def usage(code=None):
+    '''Prints the usage and exits with an error code specified by code. If code
+    is not given it exits with error_codes['usage']'''
+    log(usage_message)
+    if code is None:
+        log(extended_message)
+        code = error_codes['usage']
+    sys.exit(code)
+
+def assert_file_exists(path):
+  '''checks if the file exists. If it doesn't causes the program to exit.
+  @param path : path to file
+  @returns : the path to the file (an echo) [only on success]
+  '''
+  path = os.path.abspath(os.path.expanduser(path))
+  if not os.path.exists(path):
+    log('No file found. "%(path)s"' % locals())
+    usage(error_codes['file_not_found'])
+  return path
+
+def make_label_num(labels, rlabels):
+    def label_num(label):
+        num = rlabels.get(label, None)
+        if num is None:
+            num = len(labels)
+            labels.append({
+              'string':label,
+              'count':0})
+        rlabels[label] = num
+        return num
+    return label_num
+
+def surfer(inf, of):
+    rlabels = dict()
+    labels = list()
+    label_num = make_label_num(labels, rlabels)
+
+    def edge(line):
+        if line['targ_label'] == '': return
+        of.write('edge')
+        of.write('\t')
+        json.dump(
+            {
+              'src': int(line['src']),
+              'targ': int(line['targ']),
+              'label': line['edge_type'],
+              'src_label': label_num(line['src_label']),
+              'targ_label': label_num(line['targ_label']),
+            },
+            of
+        )
+        of.write('\n')
+    def vertex(line):
+        label = label_num(line['vertex_label'])
+        labels[label]['count'] += 1
+        of.write('vertex')
+        of.write('\t')
+        json.dump(
+            {
+              'id': int(line['id']),
+              'label': label
+            },
+            of
+        )
+        of.write('\n')
+    for line in inf:
+        lt, data = line.split('\t', 1)
+        data = json.loads(data)
+        if lt == 'edge':
+            edge(data)
+        elif lt == 'vertex':
+            vertex(data)
+        else:
+            raise Exception, "Unexpected line time %s" % lt
+    of.write('labels')
+    of.write('\t')
+    json.dump(labels, of)
+    of.write('\n')
+
+def javapdg(inf, of):
+    vertices = dict()
+    rlabels = dict()
+    labels = list()
+    label_num = make_label_num(labels, rlabels)
+
+
+    def vertex(line):
+        opcode = line['INSTROPCODE']
+        if opcode in ('methodentry', 'invokespecial', 'getfield',
+                      'invokeinterface', 'getstatic', 'invokevirtual',
+                      'putfield', 'putstatic', 'methodexit',
+                      'invokestatic',):
+            label = opcode + " " + line['INSTROPERAND']
+        else:
+            label = opcode
+        labels[label_num(label)]['count'] += 1
+        id = int(line['INSTRID'])
+        vertices[id] = label
+        of.write('vertex')
+        of.write('\t')
+        json.dump(
+            {
+              'id': id,
+              'label': label
+            },
+            of
+        )
+        of.write('\n')
+
+    def edge(line):
+        src = int(line['SRC'])
+        targ = int(line['TAR'])
+        label = line['TYPE']
+        if src not in vertices or targ not in vertices: return
+        src_label = vertices[src]
+        targ_label = vertices[targ]
+        of.write('edge')
+        of.write('\t')
+        json.dump(
+            {
+              'src': src,
+              'targ': targ,
+              'label': label,
+              'src_label': src_label,
+              'targ_label': targ_label,
+            },
+            of
+        )
+        of.write('\n')
+
+    for line in inf:
+        lt, data = line.split('\t', 1)
+        data = json.loads(data)
+        if lt == 'instr.json':
+            for item in data:
+                vertex(item)
+        elif lt in ('cfg.json', 'ddg.json', 'cdg.json'):
+            for item in data:
+                edge(item)
+        else:
+            raise Exception, "Unexpected line time %s" % lt
+    of.write('labels')
+    of.write('\t')
+    json.dump(labels, of)
+    of.write('\n')
+
+def jpdg(inf, of):
+    rlabels = dict()
+    labels = list()
+    label_num = make_label_num(labels, rlabels)
+
+    def edge(line):
+        if line['targ_label'] == '': return
+        of.write('edge')
+        of.write('\t')
+        json.dump(
+            {
+              'src': int(line['src']),
+              'targ': int(line['targ']),
+              'label': line['label'],
+              'src_label': label_num(line['src_label']),
+              'targ_label': label_num(line['targ_label']),
+            },
+            of
+        )
+        of.write('\n')
+    def vertex(line):
+        label = label_num(line['label'])
+        labels[label]['count'] += 1
+        of.write('vertex')
+        of.write('\t')
+        json.dump(
+            {
+              'id': int(line['id']),
+              'label': label
+            },
+            of
+        )
+        of.write('\n')
+    for line in inf:
+        lt, data = line.split('\t', 1)
+        data = json.loads(data)
+        if lt == 'edge':
+            edge(data)
+        elif lt == 'vertex':
+            vertex(data)
+        else:
+            raise Exception, "Unexpected line time %s" % lt
+    of.write('labels')
+    of.write('\t')
+    json.dump(labels, of)
+    of.write('\n')
+
+def main(args):
+
+    short_opts =  'hvf:'
+    long_opts = [
+      'help', 'version', 'format=',
+    ]
+
+    try:
+        opts, args = getopt(args, short_opts, long_opts)
+    except GetoptError, err:
+        log(err)
+        usage(error_codes['option'])
+
+    format = None
+    for opt, arg in opts:
+        if opt in ('-h', '--help'):
+            usage()
+        elif opt in ('-v', '--version'):
+            version()
+        elif opt in ('-f', '--format'):
+            format = arg
+
+    if format == 'surfer':
+        converter = surfer
+    elif format == 'javapdg':
+        converter = javapdg
+    elif format == 'jpdg':
+        converter = jpdg
+    else:
+        log("format %s not found" % format)
+        usage(error_codes['option'])
+
+    of = sys.stdout
+    inf = sys.stdin
+
+    try:
+        converter(inf, of)
+    except IOError, e:
+        if e.errno == 32:
+            sys.exit(0)
+        raise e
+    finally:
+        of.close()
+        inf.close()
+
+if __name__ == '__main__':
+    main(sys.argv[1:])
+
