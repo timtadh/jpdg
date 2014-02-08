@@ -3,4 +3,9 @@ for file in $(find $(pwd)/libs/ext -name '*.jar'); do
   export CLASSPATH=$file:$CLASSPATH
 done
 export CLASSPATH=$(pwd)/target/main/classes:$CLASSPATH
-alias soot='java soot.Main'
+alias soot='java soot.Main
+
+for file in $(find $JAVA_HOME -name '*.jar'); do
+  export JAVA_JARS=$file:$JAVA_JARS
+done'
+

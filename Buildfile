@@ -40,6 +40,9 @@ jpdg_libs = [
   #'org.javatuples:javatuples:jar:1.2',
   #'com.cedarsoftware:json-io:jar:2.4.1',
   'com.google.code.gson:gson:jar:2.2.4',
+  'org.apache.commons:commons-io:jar:1.3.2',
+  'commons-codec:commons-codec:jar:1.4',
+  'commons-lang:commons-lang:jar:2.6',
 ]
 
 task :jas do

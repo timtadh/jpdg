@@ -191,79 +191,69 @@ public class pDG_Builder {
     }
 
     void build_ddg() {
-        System.out.println("building ddg for " + klass.getPackageName() + " " + klass.getName() + " " + method.getName());
+        System.err.println("building ddg for " + klass.getPackageName() + " " + klass.getName() + " " + method.getName());
+
         BriefUnitGraph bug = new BriefUnitGraph(body);
         SimpleLiveLocals sll = new SimpleLiveLocals(bug);
         SmartLocalDefs sld = new SmartLocalDefs(bug, sll);
         SimpleLocalUses slu = new SimpleLocalUses(bug, sld);
+
+        // For each block, find the blocks which are data dependent.
         for (Iterator<Block> i = cfg.iterator(); i.hasNext(); ) {
+
             HashMap<Integer,List<DefinitionStmt>> defining_stmts = new HashMap<Integer,List<DefinitionStmt>>();
+
             Block b = i.next();
             int uid_b = block_uids.get(b.getIndexInMethod());
-            // System.out.println("Block" + b.getIndexInMethod());
+
+            // For each stmt which defines a value, associate it with that value
+            // in the `definit_stmts` variable.
             for (Iterator<soot.Unit> it = b.iterator(); it.hasNext(); ) {
                 soot.Unit u = it.next();
-                // System.out.println(u);
                 if (u instanceof DefinitionStmt) {
                     DefinitionStmt def_stmt = (DefinitionStmt)u;
                     soot.Local var = null;
                     try {
                         var  = (soot.Local)def_stmt.getLeftOp();
                     } catch (java.lang.ClassCastException e) {
+                        // It will be a field reference if it is not a local.
+                        // In the future we want to dataflow through field
+                        // references however that will always be handled by
+                        // another method as it will be inter-procedural.
                         System.err.println("LeftOp was not a local");
                         System.err.println(def_stmt.getLeftOp());
                         continue;
                     }
-                    // System.out.print("++ ");
-                    // printJimpleLocal(var);
-                    // System.out.println();
                     if (!defining_stmts.containsKey(var.getNumber())) {
                         defining_stmts.put(var.getNumber(), new ArrayList<DefinitionStmt>());
                     }
                     defining_stmts.get(var.getNumber()).add(def_stmt);
                 }
             }
-            // System.out.println();
+
+            // For each live-variable at the end of the block, find its defining
+            // stmts. For each defining stmt identify the "upward exposed uses"
+            // and for each use attach a dependence edge between this block and
+            // that one.
             List<soot.Local> values = sll.getLiveLocalsAfter(b.getTail());
-            // System.out.print("block tail " + b.getTail());
-            // System.out.print(">> ");
             for (soot.Local value : values) {
-                // printJimpleLocal(value);
-                // System.out.print(" ");
                 if (defining_stmts.containsKey(value.getNumber())) {
                     List<DefinitionStmt> def_stmts =  defining_stmts.get(value.getNumber());
                     for (DefinitionStmt def_stmt : def_stmts) {
-                        // System.out.print(def_stmt + " ");
                         List<UnitValueBoxPair> uses = slu.getUsesOf(def_stmt);
                         for (UnitValueBoxPair u : uses) {
                             Block ub = unit_to_blk.get(u.unit);
                             int uid_ub = block_uids.get(ub.getIndexInMethod());
-                            // System.out.print("{" + u.unit + "::block-" + ub.getIndexInMethod() + "} ");
+                            // In the future we may want to consider allowing
+                            // this if the block is in a loop and the dependency
+                            // is loop carried.
                             if (uid_b != uid_ub) {
                                 g.addEdge(uid_b, uid_ub, "ddg");
                             }
                         }
-                        // System.out.print("; ");
                     }
-                    /* Now all we need to do is find the blocks the which use
-                     * the value from the defining_stmt and hook them up.
-                     */
-                } else {
-                    // System.out.print("no-def-in-block");
                 }
-                // System.out.print(", ");
             }
-            // System.out.println();
-            // System.out.println();
-            // System.out.println();
         }
-    }
-
-    void printJimpleLocal(JimpleLocal jl) {
-        System.out.print(jl.getName());
-        System.out.print(":");
-        System.out.print(jl.getType());
-        System.out.print(":");
-        System.out.print(jl.getNumber());
     }
 }
