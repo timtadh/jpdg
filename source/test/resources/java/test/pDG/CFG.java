@@ -1,4 +1,4 @@
-package test.cfg;
+package test.pDG;
 
 /* Tim Henderson (tadh@case.edu)
  *
