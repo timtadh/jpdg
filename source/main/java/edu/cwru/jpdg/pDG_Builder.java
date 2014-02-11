@@ -55,9 +55,11 @@ import soot.jimple.internal.JimpleLocal;
 import soot.jimple.internal.JimpleLocalBox;
 
 import edu.cwru.jpdg.graph.Graph;
+import edu.cwru.jpdg.label.LabelMaker;
 
 public class pDG_Builder {
 
+    LabelMaker lm;
     Graph g;
     soot.SootClass klass;
     soot.SootMethod method;
@@ -68,9 +70,11 @@ public class pDG_Builder {
     HashMap<Integer,Integer> block_uids = new HashMap<Integer,Integer>();
     HashMap<soot.Unit,Block> unit_to_blk = new HashMap<soot.Unit,Block>();
 
+    public ddg_Builder ddg_builder;
 
-    public static void build(Graph g, soot.SootClass c, soot.SootMethod m, soot.Body body, BlockGraph cfg) {
-        pDG_Builder self = new pDG_Builder(g, c, m, body, cfg);
+
+    public static void build(LabelMaker lm, Graph g, soot.SootClass c, soot.SootMethod m, soot.Body body, BlockGraph cfg) {
+        pDG_Builder self = new pDG_Builder(lm, g, c, m, body, cfg);
         self.build_pDG();
     }
 
@@ -80,7 +84,8 @@ public class pDG_Builder {
 
     private pDG_Builder() {}
 
-    private pDG_Builder(Graph g, soot.SootClass c, soot.SootMethod m, soot.Body body, BlockGraph cfg) {
+    private pDG_Builder(LabelMaker lm, Graph g, soot.SootClass c, soot.SootMethod m, soot.Body body, BlockGraph cfg) {
+        this.lm = lm;
         this.g = g;
         this.klass = c;
         this.method = m;
@@ -92,6 +97,8 @@ public class pDG_Builder {
     void init() {
         this.assign_uids();
         this.map_units_to_blks();
+        this.ddg_builder = new ddg_Builder();
+        this.assign_labels();
     }
 
     void build_pDG() {
@@ -120,8 +127,15 @@ public class pDG_Builder {
                 b.getTail().getJavaSourceStartLineNumber(),
                 b.getTail().getJavaSourceStartColumnNumber()
             );
-            g.setLabel(uid, "block uid: " + uid + "\n" + b.toString());
             block_uids.put(b.getIndexInMethod(), uid);
+        }
+    }
+
+    void assign_labels() {
+        for (Iterator<Block> i = cfg.iterator(); i.hasNext(); ) {
+            Block b = i.next();
+            int uid = block_uids.get(b.getIndexInMethod());
+            g.setLabel(uid, lm.label(this, uid, b));
         }
     }
 
@@ -197,23 +211,29 @@ public class pDG_Builder {
     }
 
     void build_ddg() {
-        System.err.println("building ddg for " + klass.getPackageName() + " " + klass.getName() + " " + method.getName());
+        ddg_builder.build();
+    }
 
-        BriefUnitGraph bug = new BriefUnitGraph(body);
-        SimpleLiveLocals sll = new SimpleLiveLocals(bug);
-        SmartLocalDefs sld = new SmartLocalDefs(bug, sll);
-        SimpleLocalUses slu = new SimpleLocalUses(bug, sld);
+    public class ddg_Builder {
 
-        // For each block, find the blocks which are data dependent.
-        for (Iterator<Block> i = cfg.iterator(); i.hasNext(); ) {
+        public BriefUnitGraph bug = new BriefUnitGraph(body);
+        public SimpleLiveLocals sll = new SimpleLiveLocals(bug);
+        public SmartLocalDefs sld = new SmartLocalDefs(bug, sll);
+        public SimpleLocalUses slu = new SimpleLocalUses(bug, sld);
+        public HashMap<Integer,HashMap<Integer,List<DefinitionStmt>>> defining_stmts = new HashMap<Integer,HashMap<Integer,List<DefinitionStmt>>>();
 
-            HashMap<Integer,List<DefinitionStmt>> defining_stmts = new HashMap<Integer,List<DefinitionStmt>>();
+        ddg_Builder() {
+            for (Iterator<Block> i = cfg.iterator(); i.hasNext(); ) {
+                Block b = i.next();
+                int uid_b = block_uids.get(b.getIndexInMethod());
+                defining_stmts.put(uid_b, find_def_stmts(b));
+            }
+        }
 
-            Block b = i.next();
-            int uid_b = block_uids.get(b.getIndexInMethod());
-
+        HashMap<Integer,List<DefinitionStmt>> find_def_stmts(Block b) {
             // For each stmt which defines a value, associate it with that value
             // in the `definit_stmts` variable.
+            HashMap<Integer,List<DefinitionStmt>> def_stmts = new HashMap<Integer,List<DefinitionStmt>>();
             for (Iterator<soot.Unit> it = b.iterator(); it.hasNext(); ) {
                 soot.Unit u = it.next();
                 if (u instanceof DefinitionStmt) {
@@ -230,12 +250,28 @@ public class pDG_Builder {
                         System.err.println(def_stmt.getLeftOp());
                         continue;
                     }
-                    if (!defining_stmts.containsKey(var.getNumber())) {
-                        defining_stmts.put(var.getNumber(), new ArrayList<DefinitionStmt>());
+                    if (!def_stmts.containsKey(var.getNumber())) {
+                        def_stmts.put(var.getNumber(), new ArrayList<DefinitionStmt>());
                     }
-                    defining_stmts.get(var.getNumber()).add(def_stmt);
+                    def_stmts.get(var.getNumber()).add(def_stmt);
                 }
             }
+            return def_stmts;
+        }
+
+        void build() {
+            System.err.println("building ddg for " + klass.getPackageName() + " " + klass.getName() + " " + method.getName());
+
+            // For each block, find the blocks which are data dependent.
+
+            for (Iterator<Block> i = cfg.iterator(); i.hasNext(); ) {
+                find_data_dependencies(i.next());
+            }
+        }
+
+        void find_data_dependencies(Block b) {
+            int uid_b = block_uids.get(b.getIndexInMethod());
+            HashMap<Integer,List<DefinitionStmt>> def_stmts = defining_stmts.get(uid_b);
 
             // For each live-variable at the end of the block, find its defining
             // stmts. For each defining stmt identify the "upward exposed uses"
@@ -243,19 +279,17 @@ public class pDG_Builder {
             // that one.
             List<soot.Local> values = sll.getLiveLocalsAfter(b.getTail());
             for (soot.Local value : values) {
-                if (defining_stmts.containsKey(value.getNumber())) {
-                    List<DefinitionStmt> def_stmts =  defining_stmts.get(value.getNumber());
-                    for (DefinitionStmt def_stmt : def_stmts) {
-                        List<UnitValueBoxPair> uses = slu.getUsesOf(def_stmt);
-                        for (UnitValueBoxPair u : uses) {
-                            Block ub = unit_to_blk.get(u.unit);
-                            int uid_ub = block_uids.get(ub.getIndexInMethod());
-                            // In the future we may want to consider allowing
-                            // this if the block is in a loop and the dependency
-                            // is loop carried.
-                            if (uid_b != uid_ub) {
-                                g.addEdge(uid_b, uid_ub, "ddg");
-                            }
+                if (!def_stmts.containsKey(value.getNumber())) { continue; }
+                for (DefinitionStmt def_stmt : def_stmts.get(value.getNumber())) {
+                    List<UnitValueBoxPair> uses = slu.getUsesOf(def_stmt);
+                    for (UnitValueBoxPair u : uses) {
+                        Block ub = unit_to_blk.get(u.unit);
+                        int uid_ub = block_uids.get(ub.getIndexInMethod());
+                        // In the future we may want to consider allowing
+                        // this if the block is in a loop and the dependency
+                        // is loop carried.
+                        if (uid_b != uid_ub) {
+                            g.addEdge(uid_b, uid_ub, "ddg");
                         }
                     }
                 }

@@ -59,6 +59,7 @@ import soot.jimple.internal.JimpleLocal;
 import soot.jimple.internal.JimpleLocalBox;
 
 import edu.cwru.jpdg.graph.Graph;
+import edu.cwru.jpdg.label.InstructionLabels;
 
 public class JPDG {
 
@@ -122,7 +123,7 @@ public class JPDG {
 
     public static Graph build_PDG(soot.Scene S) {
         soot.util.Chain<soot.SootClass> classes = S.getApplicationClasses();
-        return PDG_Builder.build(classes);
+        return PDG_Builder.build(new InstructionLabels(), classes);
     }
 
     public static void writeGraph(Graph g, String path) {

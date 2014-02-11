@@ -37,20 +37,22 @@ import soot.toolkits.graph.BlockGraph;
 import soot.toolkits.graph.pdg.EnhancedBlockGraph;
 
 import edu.cwru.jpdg.graph.Graph;
-
+import edu.cwru.jpdg.label.LabelMaker;
 
 public class PDG_Builder {
 
+    LabelMaker lm;
     Graph g = new Graph();
     Chain<soot.SootClass> classes;
 
-    public static Graph build(Chain<soot.SootClass> classes) {
-        PDG_Builder self = new PDG_Builder(classes);
+    public static Graph build(LabelMaker lm, Chain<soot.SootClass> classes) {
+        PDG_Builder self = new PDG_Builder(lm, classes);
         self.build_PDG();
         return self.g;
     }
 
-    private PDG_Builder(Chain<soot.SootClass> classes) {
+    private PDG_Builder(LabelMaker lm, Chain<soot.SootClass> classes) {
+        this.lm = lm;
         this.classes = classes;
     }
 
@@ -65,11 +67,10 @@ public class PDG_Builder {
             try {
                 soot.Body body = m.retrieveActiveBody();
                 BlockGraph ebg = new EnhancedBlockGraph(body);
-                pDG_Builder.build(g, c, m, body, ebg);
+                pDG_Builder.build(lm, g, c, m, body, ebg);
             } catch (Exception e) {
                 System.err.println(e);
             }
         }
     }
-
 }

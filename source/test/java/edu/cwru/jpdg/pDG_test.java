@@ -43,26 +43,29 @@ import java.util.*;
 
 import soot.toolkits.graph.pdg.EnhancedBlockGraph;
 
-import edu.cwru.jpdg.graph.Graph;
 import edu.cwru.jpdg.pDG_Builder;
+import edu.cwru.jpdg.graph.Graph;
+import edu.cwru.jpdg.label.*;
 
 public class pDG_test {
 
     public pDG_Builder fib_pDG_Builder() {
         pDG_Builder pDG = pDG_Builder.test_instance();
         pDG.g = new Graph();
-        soot.SootClass cfg_klass = Javac.classes("test.cfg.CFG").get("test.cfg.CFG");
+        pDG.lm = new SimpleLabels();
+        soot.SootClass cfg_klass = Javac.classes("test.pDG.CFG").get("test.pDG.CFG");
         pDG.klass = cfg_klass;
         pDG.method = cfg_klass.getMethodByName("fib");
         pDG.body = pDG.method.retrieveActiveBody();
+        assert pDG.body != null;
         pDG.cfg = new EnhancedBlockGraph(pDG.body);
+        pDG.init();
         return pDG;
     }
 
     @Test
     public void test_fib_cfg() {
         pDG_Builder pDG = fib_pDG_Builder();
-        pDG.assign_uids();
         pDG.build_cfg();
         Dotty.graphviz("fib_cfg", Dotty.dotty(pDG.g.Serialize()));
 
@@ -79,7 +82,6 @@ public class pDG_test {
     @Test
     public void test_fib_cdg() {
         pDG_Builder pDG = fib_pDG_Builder();
-        pDG.assign_uids();
         pDG.build_cdg();
         Dotty.graphviz("fib_cdg", Dotty.dotty(pDG.g.Serialize()));
 
@@ -95,7 +97,6 @@ public class pDG_test {
     @Test
     public void test_fib_ddg() {
         pDG_Builder pDG = fib_pDG_Builder();
-        pDG.init();
         pDG.build_ddg();
         Dotty.graphviz("fib_ddg", Dotty.dotty(pDG.g.Serialize()));
 
@@ -112,7 +113,6 @@ public class pDG_test {
     @Test
     public void write_fib_pDG() {
         pDG_Builder pDG = fib_pDG_Builder();
-        pDG.init();
         pDG.build_cdg();
         pDG.build_ddg();
         Dotty.graphviz("fib_pDG", Dotty.dotty(pDG.g.Serialize()));
