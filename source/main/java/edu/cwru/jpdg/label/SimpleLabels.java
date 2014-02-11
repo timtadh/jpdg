@@ -53,6 +53,7 @@ public class SimpleLabels implements LabelMaker {
         System.out.println("block uid: " + uid);
 
         HashMap<Integer,Node> var_ops = new HashMap<Integer,Node>();
+        TreeBuilder tree_builder = new TreeBuilder(var_ops);
 
         String tail_label = "";
 
@@ -76,8 +77,7 @@ public class SimpleLabels implements LabelMaker {
                     continue;
                 }
                 soot.Value right = def_stmt.getRightOp();
-                Node node = process_value(var_ops, right);
-
+                Node node = tree_builder.build(right);
 
                 if (node != null) {
                     var_ops.put(def_var.getNumber(), node);
@@ -97,7 +97,7 @@ public class SimpleLabels implements LabelMaker {
         for (soot.Local live_var : live_vars) {
             System.out.println("live>>> "  + live_var);
             if (var_ops.containsKey(live_var.getNumber())) {
-                label += live_var.toString() + ":";
+                label += live_var.toString() + "=";
                 label += var_ops.get(live_var.getNumber()).toString();
                 label += ";";
             }
@@ -109,42 +109,143 @@ public class SimpleLabels implements LabelMaker {
         return "block uid: " + uid + "\n" + b.toString() + "\n" + label + "\n" + live_vars;
     }
 
-    Node process_value(Map<Integer,Node> var_ops, soot.Value right) {
-        if (right instanceof JimpleLocal) {
-            return process_local(var_ops, (JimpleLocal)right);
-        } else if (right instanceof soot.jimple.Constant) {
-            return new Node(right.getType());
-        } else if (right instanceof soot.jimple.Ref) {
-            return new Node(right.getType());
-        } else if (right instanceof soot.jimple.Expr) {
-            System.out.println(">> soot.jimple.Expr >> " + right);
-            return process_expr(var_ops, (soot.jimple.Expr)right);
-        } else {
-            System.out.println(">>?>> " + right.getClass());
-        }
-        return null;
+}
+
+class TreeBuilder {
+
+    Map<Integer,Node> var_ops;
+
+    TreeBuilder(Map<Integer,Node> var_ops) {
+        this.var_ops = var_ops;
     }
 
-    Node process_local(Map<Integer,Node> var_ops, JimpleLocal var) {
+    Node build(soot.Value value) {
+        return process_value(value);
+    }
+
+    Node process_value(soot.Value right) {
+        if (right instanceof soot.jimple.Ref) {
+            return process_ref((soot.jimple.Ref)right);
+        } else if (right instanceof soot.jimple.Expr) {
+            return process_expr((soot.jimple.Expr)right);
+        } else if (right instanceof soot.Local) {
+            return process_local((soot.Local)right);
+        } else if (right instanceof soot.Immediate) {
+            return process_immediate((soot.Immediate)right);
+        }
+        throw new RuntimeException("Unexpected type " + right.getClass());
+    }
+
+    Node process_ref(soot.jimple.Ref ref) {
+        return new Node(ref.getType());
+    }
+
+    Node process_immediate(soot.Immediate konst) {
+        return
+          (new Node(konst.getType()))
+            .addkid(new Node(konst.toString()));
+    }
+
+    Node process_expr(soot.jimple.Expr expr) {
+        if (expr instanceof soot.jimple.BinopExpr) {
+            return process_binop((soot.jimple.BinopExpr)expr);
+        } else if (expr instanceof soot.jimple.AnyNewExpr) {
+            return process_any_new_expr((soot.jimple.AnyNewExpr)expr);
+        } else if (expr instanceof soot.jimple.InvokeExpr) {
+            return process_invoke((soot.jimple.InvokeExpr)expr);
+        } else if (expr instanceof soot.jimple.InstanceOfExpr) {
+            return process_instance_of((soot.jimple.InstanceOfExpr)expr);
+        } else if (expr instanceof soot.jimple.CastExpr) {
+            return process_cast((soot.jimple.CastExpr)expr);
+        } else if (expr instanceof soot.jimple.UnopExpr) {
+            return process_unop((soot.jimple.UnopExpr)expr);
+        }
+        throw new RuntimeException("Unexpected type " + expr.getClass());
+    }
+
+    Node process_local(soot.Local var) {
         if (var_ops.containsKey(var.getNumber())) {
             return var_ops.get(var.getNumber());
         }
         return new Node(var.getType());
     }
 
-    Node process_expr(Map<Integer,Node> var_ops, soot.jimple.Expr expr) {
-        if (expr instanceof soot.jimple.BinopExpr) {
-            return process_binop(var_ops, (soot.jimple.BinopExpr)expr);
-        } else {
-            System.out.println(">>?>> " + expr.getClass());
-        }
-        return null;
+    Node process_binop(soot.jimple.BinopExpr expr) {
+        return
+          (new Node(expr.getSymbol().trim()))
+            .addkid(process_value(expr.getOp1()))
+            .addkid(process_value(expr.getOp2()));
     }
 
-    Node process_binop(Map<Integer,Node> var_ops, soot.jimple.BinopExpr expr) {
-        return (new Node(expr.getSymbol().trim())).addkid(
-            process_value(var_ops, expr.getOp1())).addkid(
-            process_value(var_ops, expr.getOp2()));
+    Node process_instance_of(soot.jimple.InstanceOfExpr expr) {
+        return
+          (new Node("instanceof"))
+            .addkid(process_value(expr.getOp()))
+            .addkid(new Node(expr.getCheckType()));
+    }
+
+    Node process_cast(soot.jimple.CastExpr expr) {
+        return
+          (new Node("cast"))
+            .addkid(new Node(expr.getCastType()))
+            .addkid(process_value(expr.getOp()));
+    }
+
+    Node process_unop(soot.jimple.UnopExpr expr) {
+        if (expr instanceof soot.jimple.LengthExpr) {
+            return process_length_op((soot.jimple.LengthExpr)expr);
+        } else if (expr instanceof soot.jimple.NegExpr) {
+            return process_neg_op((soot.jimple.NegExpr)expr);
+        }
+        throw new RuntimeException("Unexpected type " + expr.getClass());
+    }
+
+    Node process_length_op(soot.jimple.LengthExpr expr) {
+        return (new Node("length")).addkid(process_value(expr.getOp()));
+    }
+
+    Node process_neg_op(soot.jimple.NegExpr expr) {
+        return (new Node("negate")).addkid(process_value(expr.getOp()));
+    }
+
+    Node process_invoke(soot.jimple.InvokeExpr expr) {
+        return
+          (new Node("call"))
+            .addkid(new Node(expr.getMethod()));
+    }
+
+    Node process_any_new_expr(soot.jimple.AnyNewExpr expr) {
+        if (expr instanceof soot.jimple.NewArrayExpr) {
+            return process_new_array((soot.jimple.NewArrayExpr)expr);
+        } else if (expr instanceof soot.jimple.NewMultiArrayExpr) {
+            return process_new_multi_array((soot.jimple.NewMultiArrayExpr)expr);
+        } else if (expr instanceof soot.jimple.NewExpr) {
+            return process_new_expr((soot.jimple.NewExpr)expr);
+        }
+        throw new RuntimeException("Unexpected type " + expr.getClass());
+    }
+
+    Node process_new_array(soot.jimple.NewArrayExpr expr) {
+        return
+          (new Node("new-array"))
+            .addkid(new Node(expr.getBaseType()))
+            .addkid(process_value(expr.getSize()));
+    }
+
+    Node process_new_multi_array(soot.jimple.NewMultiArrayExpr expr) {
+        Node n =
+          (new Node("new-multi-array"))
+            .addkid(new Node(expr.getBaseType()));
+        for (Object size : expr.getSizes()) {
+            n.addkid(process_value((soot.Value)size));
+        }
+        return n;
+    }
+
+    Node process_new_expr(soot.jimple.NewExpr expr) {
+        return
+          (new Node("new"))
+            .addkid(new Node(expr.getBaseType()));
     }
 }
 
@@ -158,7 +259,9 @@ class Node {
     }
 
     Node addkid(Node kid) {
-        children.add(kid);
+        if (kid != null) {
+            children.add(kid);
+        }
         return this;
     }
 
@@ -171,8 +274,8 @@ class Node {
     }
 
     String repr() {
-        // return kid_count() + ":" + label.toString();
-        return label.toString();
+        return kid_count() + ":" + label.toString();
+        // return label.toString();
     }
 
     public String toString() {
