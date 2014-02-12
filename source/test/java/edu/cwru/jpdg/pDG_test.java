@@ -49,11 +49,12 @@ import edu.cwru.jpdg.label.*;
 
 public class pDG_test {
 
+    soot.SootClass cfg_klass = Javac.classes("test.pDG.CFG").get("test.pDG.CFG");
+
     public pDG_Builder fib_pDG_Builder() {
         pDG_Builder pDG = pDG_Builder.test_instance();
         pDG.g = new Graph();
-        pDG.lm = new SimpleLabels();
-        soot.SootClass cfg_klass = Javac.classes("test.pDG.CFG").get("test.pDG.CFG");
+        pDG.lm = new ExpressionTreeLabels();
         pDG.klass = cfg_klass;
         pDG.method = cfg_klass.getMethodByName("fib");
         pDG.body = pDG.method.retrieveActiveBody();

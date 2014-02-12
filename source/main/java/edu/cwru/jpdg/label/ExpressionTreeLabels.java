@@ -47,28 +47,23 @@ import soot.jimple.internal.JimpleLocalBox;
 
 import edu.cwru.jpdg.pDG_Builder;
 
-public class SimpleLabels implements LabelMaker {
+public class ExpressionTreeLabels implements LabelMaker {
 
     public String label(pDG_Builder pDG, int uid, Block b) {
-        System.out.println("block uid: " + uid);
-
         HashMap<Integer,Node> var_ops = new HashMap<Integer,Node>();
         TreeBuilder tree_builder = new TreeBuilder(var_ops);
 
         String tail_label = "";
 
         if (b.getTail() instanceof soot.jimple.IfStmt) {
-            tail_label = "(branch)";
+            soot.jimple.IfStmt branch = (soot.jimple.IfStmt)b.getTail();
+            tail_label = tree_builder.build(branch.getCondition()).toString();
         }
 
         for (Iterator<soot.Unit> it = b.iterator(); it.hasNext(); ) {
             soot.Unit u = it.next();
-            System.out.println(u);
-            System.out.println(u.getClass());
             if (u instanceof DefinitionStmt) {
                 DefinitionStmt def_stmt = (DefinitionStmt)u;
-                System.out.println(def_stmt.getRightOpBox().getClass());
-                System.out.println(def_stmt.getRightOpBox().getValue().getClass());
                 soot.Local def_var = null;
                 String use_str = "";
                 try {
@@ -83,30 +78,20 @@ public class SimpleLabels implements LabelMaker {
                     var_ops.put(def_var.getNumber(), node);
                 }
             }
-            System.out.println();
-        }
-
-        for (Map.Entry<Integer,Node> entry : var_ops.entrySet()) {
-            System.out.println(entry.getKey());
-            System.out.println(entry.getValue());
-            System.out.println();
         }
 
         String label = "";
         List<soot.Local> live_vars = pDG.ddg_builder.sll.getLiveLocalsAfter(b.getTail());
         for (soot.Local live_var : live_vars) {
-            System.out.println("live>>> "  + live_var);
             if (var_ops.containsKey(live_var.getNumber())) {
-                label += live_var.toString() + "=";
+                // label += live_var.toString() + "=";
                 label += var_ops.get(live_var.getNumber()).toString();
                 label += ";";
             }
         }
         label += tail_label;
-        System.out.println();
-        System.out.println();
-        System.out.println();
-        return "block uid: " + uid + "\n" + b.toString() + "\n" + label + "\n" + live_vars;
+        // return "block uid: " + uid + "\n" + b.toString() + "\n" + label + "\n" + live_vars;
+        return label;
     }
 
 }
@@ -209,9 +194,17 @@ class TreeBuilder {
     }
 
     Node process_invoke(soot.jimple.InvokeExpr expr) {
-        return
-          (new Node("call"))
-            .addkid(new Node(expr.getMethod()));
+        soot.SootMethod m = expr.getMethod();
+        Node params = new Node("params");
+        Node returns = new Node("return");
+        for (soot.Type type : m.getParameterTypes()) {
+            params.addkid(new Node(type));
+        }
+        Node n =(new Node("call"))
+            .addkid(new Node(m.getDeclaringClass().getName() + "." + m.getName()))
+            .addkid(params)
+            .addkid(returns.addkid(new Node(m.getReturnType())));
+        return n;
     }
 
     Node process_any_new_expr(soot.jimple.AnyNewExpr expr) {
@@ -259,9 +252,10 @@ class Node {
     }
 
     Node addkid(Node kid) {
-        if (kid != null) {
-            children.add(kid);
+        if (kid == null) {
+            throw new NullPointerException("kid can't be null");
         }
+        children.add(kid);
         return this;
     }
 

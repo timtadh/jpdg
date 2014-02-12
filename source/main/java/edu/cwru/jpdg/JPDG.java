@@ -59,7 +59,7 @@ import soot.jimple.internal.JimpleLocal;
 import soot.jimple.internal.JimpleLocalBox;
 
 import edu.cwru.jpdg.graph.Graph;
-import edu.cwru.jpdg.label.SimpleLabels;
+import edu.cwru.jpdg.label.ExpressionTreeLabels;
 
 public class JPDG {
 
@@ -123,7 +123,7 @@ public class JPDG {
 
     public static Graph build_PDG(soot.Scene S) {
         soot.util.Chain<soot.SootClass> classes = S.getApplicationClasses();
-        return PDG_Builder.build(new SimpleLabels(), classes);
+        return PDG_Builder.build(new ExpressionTreeLabels(), classes);
     }
 
     public static void writeGraph(Graph g, String path) {

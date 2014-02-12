@@ -207,6 +207,7 @@ public class Javac {
 
         soot.Scene S = edu.cwru.jpdg.JPDG.runSoot(cp, dirs);
         for (soot.SootClass klass : S.getApplicationClasses()) {
+            System.out.println(klass);
             map.put(klass.getName(), klass);
         }
         return map;
