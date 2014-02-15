@@ -77,6 +77,11 @@ public class ExpressionTreeLabels implements LabelMaker {
                 if (node != null) {
                     var_ops.put(def_var.getNumber(), node);
                 }
+            } else if (u instanceof soot.jimple.Stmt) {
+                soot.jimple.Stmt stmt = (soot.jimple.Stmt)u;
+                if (stmt.containsInvokeExpr()) {
+                    tail_label += tree_builder.build(stmt.getInvokeExpr());
+                }
             }
         }
 

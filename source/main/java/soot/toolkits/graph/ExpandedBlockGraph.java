@@ -35,12 +35,13 @@ import soot.Body;
 import soot.Unit;
 
 import soot.toolkits.graph.pdg.EnhancedUnitGraph;
+import soot.toolkits.graph.ExceptionalUnitGraph;
 
 
 public class ExpandedBlockGraph extends BlockGraph {
 
     public  ExpandedBlockGraph(Body body) {
-        this(new EnhancedUnitGraph(body));
+        this(new ExceptionalUnitGraph(body));
     }
 
     public  ExpandedBlockGraph(UnitGraph unitGraph) {
