@@ -45,4 +45,12 @@ public class CFG {
         }
         return cur;
     }
+
+    public static int fib_caller(int x) {
+        int r = 0;
+        r += fib(x);
+        r += 1;
+        r += fib(x);
+        return r;
+    }
 }

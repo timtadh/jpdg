@@ -52,12 +52,12 @@ public class pDG_test {
 
     soot.SootClass cfg_klass = Javac.classes("test.pDG.CFG").get("test.pDG.CFG");
 
-    public pDG_Builder fib_pDG_Builder() {
+    public pDG_Builder fib_pDG_Builder(String method) {
         pDG_Builder pDG = pDG_Builder.test_instance();
         pDG.g = new Graph();
-        pDG.lm = new ExpressionTreeLabels();
+        pDG.lm = new InstructionLabels();
         pDG.klass = cfg_klass;
-        pDG.method = cfg_klass.getMethodByName("fib");
+        pDG.method = cfg_klass.getMethodByName(method);
         pDG.body = pDG.method.retrieveActiveBody();
         assert pDG.body != null;
         pDG.cfg = new ExpandedBlockGraph(pDG.body);
@@ -67,7 +67,7 @@ public class pDG_test {
 
     @Test
     public void test_fib_cfg() {
-        pDG_Builder pDG = fib_pDG_Builder();
+        pDG_Builder pDG = fib_pDG_Builder("fib");
         pDG.build_cfg();
         Dotty.graphviz("fib_cfg", Dotty.dotty(pDG.g.Serialize()));
 
@@ -82,8 +82,21 @@ public class pDG_test {
     }
 
     @Test
+    public void test_fib_caller_cfg() {
+        pDG_Builder pDG = fib_pDG_Builder("fib_caller");
+        pDG.build_cfg();
+        Dotty.graphviz("fib_caller_cfg", Dotty.dotty(pDG.g.Serialize()));
+
+        assertThat(pDG.g.hasEdge(0, 1, "cfg"), is(true));
+        assertThat(pDG.g.hasEdge(1, 2, "cfg"), is(true));
+        assertThat(pDG.g.hasEdge(2, 3, "cfg"), is(true));
+        assertThat(pDG.g.hasEdge(3, 4, "cfg"), is(true));
+        assertThat(pDG.g.hasEdge(4, 5, "cfg"), is(true));
+    }
+
+    @Test
     public void test_fib_cdg() {
-        pDG_Builder pDG = fib_pDG_Builder();
+        pDG_Builder pDG = fib_pDG_Builder("fib");
         pDG.build_cdg();
         Dotty.graphviz("fib_cdg", Dotty.dotty(pDG.g.Serialize()));
 
@@ -98,7 +111,7 @@ public class pDG_test {
 
     @Test
     public void test_fib_ddg() {
-        pDG_Builder pDG = fib_pDG_Builder();
+        pDG_Builder pDG = fib_pDG_Builder("fib");
         pDG.build_ddg();
         Dotty.graphviz("fib_ddg", Dotty.dotty(pDG.g.Serialize()));
 
@@ -114,7 +127,7 @@ public class pDG_test {
 
     @Test
     public void write_fib_pDG() {
-        pDG_Builder pDG = fib_pDG_Builder();
+        pDG_Builder pDG = fib_pDG_Builder("fib");
         pDG.build_cdg();
         pDG.build_ddg();
         Dotty.graphviz("fib_pDG", Dotty.dotty(pDG.g.Serialize()));
