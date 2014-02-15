@@ -42,6 +42,7 @@ import org.junit.runners.JUnit4;
 import java.util.*;
 
 import soot.toolkits.graph.pdg.EnhancedBlockGraph;
+import soot.toolkits.graph.ExpandedBlockGraph;
 
 import edu.cwru.jpdg.pDG_Builder;
 import edu.cwru.jpdg.graph.Graph;
@@ -59,7 +60,7 @@ public class pDG_test {
         pDG.method = cfg_klass.getMethodByName("fib");
         pDG.body = pDG.method.retrieveActiveBody();
         assert pDG.body != null;
-        pDG.cfg = new EnhancedBlockGraph(pDG.body);
+        pDG.cfg = new ExpandedBlockGraph(pDG.body);
         pDG.init();
         return pDG;
     }

@@ -35,6 +35,7 @@ import soot.util.Chain;
 
 import soot.toolkits.graph.BlockGraph;
 import soot.toolkits.graph.pdg.EnhancedBlockGraph;
+import soot.toolkits.graph.ExpandedBlockGraph;
 
 import edu.cwru.jpdg.graph.Graph;
 import edu.cwru.jpdg.label.LabelMaker;
@@ -66,7 +67,7 @@ public class PDG_Builder {
         for (soot.SootMethod m : c.getMethods()) {
             try {
                 soot.Body body = m.retrieveActiveBody();
-                BlockGraph ebg = new EnhancedBlockGraph(body);
+                BlockGraph ebg = new ExpandedBlockGraph(body);
                 pDG_Builder.build(lm, g, c, m, body, ebg);
             } catch (Exception e) {
                 System.err.println(e);
