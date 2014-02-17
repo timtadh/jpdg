@@ -15,3 +15,5 @@ source scripts/env/bin/activate
 export PATH=$(pwd)/scripts/bin:$PATH
 export PYTHONPATH=$(pwd)/scripts:$PYTHONPATH
 
+export GOPATH=$(pwd)/go:$GOPATH
+export PATH=$(pwd)/go/bin:$PATH
