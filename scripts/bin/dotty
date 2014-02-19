@@ -112,9 +112,20 @@ def dotty(inf, of):
     def vertex(line):
         template = 'n%d [shape=rect, fontname="Courier", label=<<table border="0">%s</table>>];\n'
         of.write(template % (line['id'], string(line['label'])))
+    def finalize():
+        of.write('\n}\n')
+    def start():
+        of.write('digraph G {\n')
 
-    of.write('digraph G {\n')
+    finalized = True
     for i, line in enumerate(inf):
+        if finalized:
+            start()
+        if '\t' not in line:
+            finalize()
+            finalized = True
+            continue
+        finalized = False
         lt, data = line.split('\t', 1)
         data = json.loads(data)
         if i % 100 == 0: print >>sys.stderr, i, lt
@@ -126,7 +137,8 @@ def dotty(inf, of):
             pass
         else:
             raise Exception, "Unexpected line time %s" % lt
-    of.write('\n}\n')
+    if not finalized:
+        finalize()
 
 def main(args):
 

@@ -34,12 +34,18 @@ import (
   "os"
   "fmt"
   "path"
-  "encoding/json"
   "io"
   "io/ioutil"
   "compress/gzip"
   "strings"
+)
+
+import (
   "github.com/timtadh/getopt"
+)
+
+import (
+  "cwru/selab/slice/graph"
 )
 
 var ErrorCodes map[string]int = map[string]int{
@@ -139,56 +145,6 @@ func InputDir(input_dir string) (reader io.Reader, closeall func()) {
     }
 }
 
-func ProcessLines(reader io.Reader, process func(string)) {
-
-    const SIZE = 4096
-
-    read_chunk := func() (chunk []byte, closed bool) {
-        chunk = make([]byte, 4096)
-        if n, err := reader.Read(chunk); err == io.EOF {
-            return nil, true
-        } else if err != nil {
-            panic(err)
-        } else {
-            return chunk[:n], false
-        }
-    }
-
-    parse := func(buf []byte) (obuf []byte, line string, ok bool) {
-        for i := 0; i < len(buf); i++ {
-            if buf[i] == '\n' {
-                line = string(buf[:i+1])
-                obuf = buf[i+1:]
-                return obuf, line, true
-            }
-        }
-        return buf, "", false
-    }
-
-    var buf []byte
-    read_line := func() (line string, closed bool) {
-        ok := false
-        buf, line, ok = parse(buf)
-        for !ok {
-            chunk, closed := read_chunk()
-            if closed || len(chunk) == 0 {
-                line = string(buf)
-                return line, true
-            }
-            buf = append(buf, chunk...)
-            buf, line, ok = parse(buf)
-        }
-        return line, false
-    }
-
-    closed := false
-    for !closed {
-        var line string
-        line, closed = read_line()
-        process(line)
-    }
-}
-
 func main() {
 
     args, optargs, err := getopt.GetOpt(
@@ -226,49 +182,18 @@ func main() {
     }
     defer close_reader()
 
-    parse_line := func(line string) (line_type string, data []byte) {
-        split := strings.Split(line, "\t")
-        return strings.TrimSpace(split[0]), []byte(strings.TrimSpace(split[1]))
-    }
-    load_vertex := func(obj map[string]interface{}) (id int, label string) {
-        return int(obj["id"].(float64)), obj["label"].(string)
-    }
-    load_edge := func(obj map[string]interface{}) (src, targ int, label string) {
-        return int(obj["src"].(float64)), int(obj["targ"].(float64)), obj["label"].(string)
-    }
+    type json_object map[string]interface{}
 
-    o_vertices := make(map[int]string)
-    o_edges := make(map[int]string)
-    vertices := make(map[int]string)
-    edges := make(map[int][]int)
-    redges := make(map[int][]int)
-    ProcessLines(reader, func(line string) {
-        if len(line) == 0 || !strings.Contains(line, "\t") {
-            return
-        }
-        line_type, data := parse_line(line)
 
-        var obj map[string]interface{}
-        err = json.Unmarshal(data, &obj)
+    G, err := graph.LoadGraph(reader)
+
+    slices := G.Slice("3:call,0:java.lang.StringBuilder.append,1:params,0:java.lang.String,1:return,0:java.lang.StringBuilder;")
+    for _, slice := range slices {
+        g, err := slice.Serialize()
         if err != nil {
-            fmt.Fprintln(os.Stderr, "Could not load json", data, err)
-            return
+            panic(err)
         }
-        switch line_type {
-        case "vertex":
-            id, label := load_vertex(obj)
-            vertices[id] = label
-        case "edge":
-            src, targ, _ := load_edge(obj)
-            edges[src] = append(edges[src], targ)
-            redges[targ] = append(redges[targ], src)
-        default:
-            fmt.Fprintln(os.Stderr, "Unknown line type", line_type)
-        }
-    })
-
-    fmt.Println(vertices)
-    fmt.Println(edges)
-    fmt.Println(redges)
+        fmt.Println(string(g))
+    }
 }
 
