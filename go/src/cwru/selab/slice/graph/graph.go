@@ -210,6 +210,9 @@ func (self *Graph) addVertex(v *Vertex) {
         vertices = obj.([]*Vertex)
     }
     vertices = append(vertices, v)
+    if vertices == nil {
+        panic("verticies == nil")
+    }
     err = self.index.Put([]byte(v.Label), vertices)
     if err != nil {
         file, _ := os.Create("panic.dot")

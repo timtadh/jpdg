@@ -29,16 +29,26 @@ package graph
  *   http://www.gnu.org/licenses/lgpl-2.1.html
  */
 
+import (
+  "os"
+  "fmt"
+  "strings"
+)
+import "github.com/timtadh/data-structures/types"
 
-func (self *Graph) Slice(label string) (slices []*Graph) {
-    obj, err := self.index.Get([]byte(label))
-    if err != nil {
-        panic(err)
+func (self *Graph) Slice(prefix string) (slices []*Graph) {
+    next := self.index.PrefixFind([]byte(prefix))
+    for label, obj, next := next(); next != nil; label, obj, next = next() {
+        matches := obj.([]*Vertex)
+        fmt.Fprintln(os.Stderr, string(label.(types.ByteSlice)), len(matches))
+        for _, match := range matches {
+            graph := self.slice(match)
+            if len(graph.V) > 1 {
+                slices = append(slices, graph)
+            }
+        }
     }
-    matches := obj.([]*Vertex)
-    for _, match := range matches {
-        slices = append(slices, self.slice(match))
-    }
+    fmt.Fprintln(os.Stderr)
     return slices
 }
 
@@ -49,6 +59,9 @@ func (self *Graph) slice(start *Vertex) *Graph {
     var visit func(*Vertex)
     visit = func(n *Vertex) {
         seen[n.Id] = true
+        if strings.HasSuffix(n.Label, "-entry") {
+            return
+        }
         g.addVertex(n)
         for _, parent := range self.parents[n.Id] {
             if !seen[parent] {

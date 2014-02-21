@@ -149,10 +149,11 @@ func main() {
 
     args, optargs, err := getopt.GetOpt(
         os.Args[1:],
-        "hs",
+        "hsp:",
         []string{
           "help",
           "stdin",
+          "prefix=",
         },
     )
     if err != nil {
@@ -161,11 +162,17 @@ func main() {
     }
 
     stdin := false
+    prefix := ""
     for _, oa := range optargs {
         switch oa.Opt() {
         case "-h", "--help": Usage(0)
         case "-s", "--stdin": stdin = true
+        case "-p", "--prefix": prefix = oa.Arg()
         }
+    }
+    if prefix == "" {
+        fmt.Fprintln(os.Stderr, "You must specify a prefix to slice on")
+        Usage(ErrorCodes["opts"])
     }
 
     var reader io.Reader
@@ -187,7 +194,7 @@ func main() {
 
     G, err := graph.LoadGraph(reader)
 
-    slices := G.Slice("3:call,0:java.lang.StringBuilder.append,1:params,0:java.lang.String,1:return,0:java.lang.StringBuilder;")
+    slices := G.Slice(prefix)
     for _, slice := range slices {
         g, err := slice.Serialize()
         if err != nil {
