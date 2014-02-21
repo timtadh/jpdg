@@ -30,11 +30,16 @@ package graph
  */
 
 import (
+  "os"
   "io"
   "fmt"
   "bytes"
   "strings"
   "encoding/json"
+)
+
+import (
+  "github.com/timtadh/data-structures/trie"
 )
 
 type jsonObject map[string]interface{}
@@ -71,7 +76,7 @@ type Edge struct {
 }
 
 type Graph struct {
-    index map[string][]*Vertex
+    index *trie.TST
     V map[int64]*Vertex "vertices"
     E map[Arc]*Edge "edges"
     kids map[int64][]int64
@@ -147,7 +152,7 @@ func parseLine(line []byte) (line_type string, data []byte) {
 
 func newGraph() *Graph {
     return &Graph{
-        index: make(map[string][]*Vertex),
+        index: new(trie.TST),
         V: make(map[int64]*Vertex),
         E: make(map[Arc]*Edge),
         kids: make(map[int64][]int64),
@@ -192,7 +197,27 @@ func LoadGraph(reader io.Reader) (graph *Graph, err error) {
 
 func (self *Graph) addVertex(v *Vertex) {
     self.V[v.Id] = v
-    self.index[v.Label] = append(self.index[v.Label], v)
+    if v.Label == "" {
+        return
+    }
+    var vertices []*Vertex
+    var err error
+    if self.index.Has([]byte(v.Label)) {
+        obj, err := self.index.Get([]byte(v.Label))
+        if err != nil {
+            panic(err)
+        }
+        vertices = obj.([]*Vertex)
+    }
+    vertices = append(vertices, v)
+    err = self.index.Put([]byte(v.Label), vertices)
+    if err != nil {
+        file, _ := os.Create("panic.dot")
+        fmt.Fprintln(file, self.index.Dotty())
+        file.Close()
+        fmt.Println(v.Label)
+        panic(err)
+    }
 }
 
 func (self *Graph) addEdge(e *Edge) {

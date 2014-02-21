@@ -31,7 +31,11 @@ package graph
 
 
 func (self *Graph) Slice(label string) (slices []*Graph) {
-    matches := self.index[label]
+    obj, err := self.index.Get([]byte(label))
+    if err != nil {
+        panic(err)
+    }
+    matches := obj.([]*Vertex)
     for _, match := range matches {
         slices = append(slices, self.slice(match))
     }

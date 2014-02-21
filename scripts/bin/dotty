@@ -92,26 +92,37 @@ def delete_file_if_exists(path):
         os.unlink(path)
     return path
 
-def dotty(inf, of):
+def dotty(inf, of, html=True):
 
     def string(label):
-        label = (
-            label.replace("'", "\\'").
-            replace('"', '\\"').
-            replace('\n', '\\n')
-        )
-        label = cgi.escape(label).encode('ascii', 'xmlcharrefreplace')
-        s = ''.join(
-            '<tr><td align="left">' + line + "</td></tr>"
-            for line in label.split('\\n')
-        )
+        if html:
+            label = (
+                label.replace("'", "\\'").
+                replace('"', '\\"').
+                replace('\n', '\\n')
+            )
+            label = cgi.escape(label).encode('ascii', 'xmlcharrefreplace')
+            s = ''.join(
+                '<tr><td align="left">' + line + "</td></tr>"
+                for line in label.split('\\n')
+            )
+        else:
+            s = (
+                label.replace('"', '').
+                replace('"', '').
+                replace('\\', '').
+                replace('\n', '')
+            )
         return s
     def edge(line):
         of.write('n%d->n%d [label="%s"];\n' % (line['src'], line['targ'],
         line['label']))
     def vertex(line):
-        template = 'n%d [shape=rect, fontname="Courier", label=<<table border="0">%s</table>>];\n'
-        of.write(template % (line['id'], string(line['label'])))
+        if html:
+            template = 'n%d [shape=rect, fontname="Courier", label=<<table border="0">%s</table>>];\n'
+            of.write(template % (line['id'], string(line['label'])))
+        else:
+            of.write('n%d [shape=rect, lable="%s"];\n' % (line['id'], string(line['label'])))
     def finalize():
         of.write('\n}\n')
     def start():
@@ -153,17 +164,20 @@ def main(args):
         log(err)
         usage(error_codes['option'])
 
+    html=False
     for opt, arg in opts:
         if opt in ('-h', '--help'):
             usage()
         elif opt in ('-v', '--version'):
             version()
+        elif opt in ('-h', '--html'):
+            html = True
 
     of = sys.stdout
     inf = sys.stdin
 
     try:
-        dotty(inf, of)
+        dotty(inf, of, html)
     except IOError, e:
         if e.errno == 32:
             sys.exit(0)
