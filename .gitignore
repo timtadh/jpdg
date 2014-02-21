@@ -6,3 +6,5 @@ target
 subjects
 reports
 *.png
+*.dot
+*.pDG
