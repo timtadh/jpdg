@@ -49,6 +49,32 @@ import edu.cwru.jpdg.pDG_Builder;
 
 public class ExpressionTreeLabels implements LabelMaker {
 
+    public static String NodeType(Block b) {
+        if (b.getTail() instanceof soot.jimple.IfStmt) {
+            return "control";
+        } else if (contains_call(b)) {
+            return "call";
+        }
+        return "block";
+    }
+
+    public static boolean contains_call(Block b) {
+        for (Iterator<soot.Unit> it = b.iterator(); it.hasNext(); ) {
+            soot.Unit u = it.next();
+            if (u instanceof soot.jimple.Stmt) {
+                soot.jimple.Stmt stmt = (soot.jimple.Stmt)u;
+                if (stmt.containsInvokeExpr()) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    public String nodeType(Block b) {
+        return ExpressionTreeLabels.NodeType(b);
+    }
+
     public String label(pDG_Builder pDG, int uid, Block b) {
         HashMap<Integer,Node> var_ops = new HashMap<Integer,Node>();
         TreeBuilder tree_builder = new TreeBuilder(var_ops);

@@ -114,6 +114,7 @@ public class pDG_Builder {
         this.entry_uid = g.addNode(
             method.getSignature() + "-entry",
             klass.getPackageName(), klass.getName(), method.getSignature(),
+            "entry",
             method.getJavaSourceStartLineNumber(),
             method.getJavaSourceStartColumnNumber(),
             method.getJavaSourceStartLineNumber(),
@@ -125,6 +126,7 @@ public class pDG_Builder {
                 // klass.getPackageName() + klass.getName() + method.getName() + b.getIndexInMethod(),
                 "",
                 klass.getPackageName(), klass.getName(), method.getSignature(),
+                lm.nodeType(b),
                 b.getHead().getJavaSourceStartLineNumber(),
                 b.getHead().getJavaSourceStartColumnNumber(),
                 b.getTail().getJavaSourceStartLineNumber(),

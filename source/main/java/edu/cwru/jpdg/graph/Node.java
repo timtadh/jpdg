@@ -40,6 +40,7 @@ public class Node {
     public String package_name;
     public String class_name;
     public String method_name;
+    public String type;
     public int start_line = -1;
     public int start_column = -1;
     public int end_line = -1;
@@ -47,12 +48,13 @@ public class Node {
     Graph g;
 
     public Node(int id, int label,
-                String package_name, String class_name, String method_name,
+                String package_name, String class_name, String method_name, String type,
                 int start_line, int start_column, int end_line, int end_column, Graph g) {
         this.id = id;
         this.package_name = package_name;
         this.class_name = class_name;
         this.method_name = method_name;
+        this.type = type;
         this.label = label;
         this.start_line = start_line;
         this.start_column = start_column;
@@ -68,6 +70,7 @@ public class Node {
         M.put("package_name", package_name);
         M.put("class_name", class_name);
         M.put("method_name", method_name);
+        M.put("type", type);
         M.put("start_line", start_line);
         M.put("start_column", start_column);
         M.put("end_line", end_line);

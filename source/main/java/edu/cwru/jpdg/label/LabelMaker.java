@@ -35,5 +35,6 @@ import edu.cwru.jpdg.pDG_Builder;
 
 public interface LabelMaker {
     String label(pDG_Builder pDG, int uid, Block b);
+    String nodeType(Block b);
 }
 

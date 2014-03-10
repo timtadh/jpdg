@@ -39,4 +39,8 @@ public class InstructionLabels implements LabelMaker {
         return "block uid: " + uid + "\n" + b.toString();
     }
 
+    public String nodeType(Block b) {
+        return ExpressionTreeLabels.NodeType(b);
+    }
+
 }
