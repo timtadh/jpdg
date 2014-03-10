@@ -157,7 +157,7 @@ def main(args):
 
     short_opts =  'hv'
     long_opts = [
-      'help', 'version',
+      'help', 'version', 'html',
     ]
 
     try:
@@ -172,7 +172,7 @@ def main(args):
             usage()
         elif opt in ('-v', '--version'):
             version()
-        elif opt in ('-h', '--html'):
+        elif opt in ('--html',):
             html = True
 
     of = sys.stdout
