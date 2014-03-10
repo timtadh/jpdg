@@ -55,6 +55,7 @@ var ErrorCodes map[string]int = map[string]int{
     "version":2,
     "opts":3,
     "badint":5,
+    "baddir":6,
 }
 
 var UsageMessage string = "slice [options] --prefix=<string> <graphs>"
@@ -65,11 +66,15 @@ Options
     -h, --help                          print this message
     -s, --stdin                         read from stdin instead
     -p, --prefix=<string>               select nodes from this prefix
+    -d, --direction=<directino>         slice direction (default backward)
     -c, --candidates=<int> > 0          show labels with counts greater than
                                         <int>
+    -e, --edge-filter=<string>          filter edges of type <string> (can be
+                                        specified multiple times)
 
 Specs
     <graphs>                            path to graph files
+    <direction>                         {backward, forward, both}
 
 Graph File Format
     The graph file format is a line delimited format with vertex lines and edge
@@ -97,7 +102,7 @@ Graph File Format
 func Usage(code int) {
     fmt.Fprintln(os.Stderr, UsageMessage)
     if code == 0 {
-        fmt.Fprintln(os.Stderr, ExtendedMessage)
+        fmt.Fprintln(os.Stdout, ExtendedMessage)
         code = ErrorCodes["usage"]
     } else {
         fmt.Fprintln(os.Stderr, "Try -h or --help for help")
@@ -159,16 +164,32 @@ func ParseInt(str string) int {
     return i
 }
 
+func ParseDirection(str string) graph.Direction {
+    switch str {
+    case "forward":
+        return graph.Forward
+    case "backward":
+        return graph.Backward
+    case "both":
+        return graph.Both
+    }
+    fmt.Fprintf(os.Stderr, "Error parsing '%v' expect one of {forward, backward, both}\n", str)
+    Usage(ErrorCodes["baddir"])
+    panic("unreachable")
+}
+
 func main() {
 
     args, optargs, err := getopt.GetOpt(
         os.Args[1:],
-        "hsp:c:",
+        "hsp:c:d:e:",
         []string{
           "help",
           "stdin",
           "prefix=",
           "candidates=",
+          "direction=",
+          "edge-filter=",
         },
     )
     if err != nil {
@@ -180,6 +201,8 @@ func main() {
     candidates := false
     minimum := 0
     prefix := ""
+    direction := graph.Backward
+    filtered_edges := make(map[string]bool)
     for _, oa := range optargs {
         switch oa.Opt() {
         case "-h", "--help": Usage(0)
@@ -188,6 +211,10 @@ func main() {
         case "-c", "--candidates":
             candidates = true
             minimum = ParseInt(oa.Arg())
+        case "-d", "--direction":
+            direction = ParseDirection(oa.Arg())
+        case "-e", "--edge-filter":
+            filtered_edges[oa.Arg()] = true
         }
     }
     if prefix == "" && !candidates {
@@ -225,7 +252,7 @@ func main() {
         return
     }
 
-    slices := G.Slice(prefix, graph.Both)
+    slices := G.Slice(prefix, direction, filtered_edges)
     for _, slice := range slices {
         g, err := slice.Serialize()
         if err != nil {

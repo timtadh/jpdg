@@ -36,15 +36,15 @@ import (
 )
 import "github.com/timtadh/data-structures/types"
 
-type Direction func(*Graph, *Vertex) *Graph
+type Direction func(*Graph, *Vertex, map[string]bool) *Graph
 
-func (self *Graph) Slice(prefix string, dir Direction) (slices []*Graph) {
+func (self *Graph) Slice(prefix string, dir Direction, filtered_edges map[string]bool) (slices []*Graph) {
     next := self.Index.PrefixFind([]byte(prefix))
     for label, obj, next := next(); next != nil; label, obj, next = next() {
         matches := obj.([]*Vertex)
         fmt.Fprintln(os.Stderr, string(label.(types.ByteSlice)), len(matches))
         for _, match := range matches {
-            graph := dir(self, match)
+            graph := dir(self, match, filtered_edges)
             if len(graph.V) > 1 {
                 slices = append(slices, graph)
             }
@@ -54,30 +54,33 @@ func (self *Graph) Slice(prefix string, dir Direction) (slices []*Graph) {
     return slices
 }
 
-func Both(self *Graph, start *Vertex) *Graph {
+func Both(self *Graph, start *Vertex, filtered_edges map[string]bool) *Graph {
     g := newGraph()
-    forward(self, g, start)
-    backward(self, g, start)
+    forward(self, g, start, filtered_edges)
+    backward(self, g, start, filtered_edges)
     return g
 }
 
-func Backward(self *Graph, start *Vertex) *Graph {
+func Backward(self *Graph, start *Vertex, filtered_edges map[string]bool) *Graph {
     g := newGraph()
-    forward(self, g, start)
+    backward(self, g, start, filtered_edges)
     return g
 }
 
-func add_edges(self, g *Graph) {
+func add_edges(self, g *Graph, filtered_edges map[string]bool) {
     for u := range g.V {
         for v := range g.V {
             if e, has := self.E[Arc{u,v}]; has {
-                g.addEdge(e)
+                _, skip := filtered_edges[e.Label]
+                if !skip {
+                    g.addEdge(e)
+                }
             }
         }
     }
 }
 
-func backward(self, g *Graph, start *Vertex) {
+func backward(self, g *Graph, start *Vertex, filtered_edges map[string]bool) {
     seen := make(map[int64]bool)
     var visit func(*Vertex)
     visit = func(n *Vertex) {
@@ -87,22 +90,23 @@ func backward(self, g *Graph, start *Vertex) {
         }
         g.addVertex(n)
         for _, parent := range self.parents[n.Id] {
-            if !seen[parent] {
+            _, skip := filtered_edges[self.E[Arc{parent,n.Id}].Label]
+            if !seen[parent] && !skip {
                 visit(self.V[parent])
             }
         }
     }
     visit(start)
-    add_edges(self, g)
+    add_edges(self, g, filtered_edges)
 }
 
-func Forward(self *Graph, start *Vertex) *Graph {
+func Forward(self *Graph, start *Vertex, filtered_edges map[string]bool) *Graph {
     g := newGraph()
-    forward(self, g, start)
+    forward(self, g, start, filtered_edges)
     return g
 }
 
-func forward(self, g *Graph, start *Vertex) {
+func forward(self, g *Graph, start *Vertex, filtered_edges map[string]bool) {
     seen := make(map[int64]bool)
     var visit func(*Vertex)
     visit = func(n *Vertex) {
@@ -112,12 +116,13 @@ func forward(self, g *Graph, start *Vertex) {
         }
         g.addVertex(n)
         for _, kid := range self.kids[n.Id] {
-            if !seen[kid] {
+            _, skip := filtered_edges[self.E[Arc{n.Id,kid}].Label]
+            if !seen[kid] && !skip {
                 visit(self.V[kid])
             }
         }
     }
     visit(start)
-    add_edges(self, g)
+    add_edges(self, g, filtered_edges)
 }
 
