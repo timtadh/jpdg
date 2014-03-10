@@ -32,9 +32,12 @@ soot_libs = [
   'libs/baksmali-1.4.3-dev.jar',
   'soot/libs/polyglot.jar',
   'soot/libs/AXMLPrinter2.jar',
-  'org.apache.ant:ant:jar:1.7.0',
   baksmali_2,
 ] + jasmin_libs
+
+ant_lib = [
+  'org.apache.ant:ant:jar:1.7.0',
+]
 
 jpdg_libs = [
   #'org.javatuples:javatuples:jar:1.2',
@@ -109,10 +112,17 @@ define 'jpdg', layout: jpdg_layout do |soot|
   test.using :java_args => ['-ea']
   task :export_libs do |t|
     for lib in jpdg_libs
+      p lib
       artifact(lib).invoke
     end
     mkdir_p _("libs/ext")
-    cp project.compile.dependencies.collect { |t| t.to_s }, _("libs/ext")
+    lib_paths = Array.new(project.compile.dependencies).reject do |t|
+      ## remove dependencies which are not downloaded artifacts
+      t.class == String 
+    end .collect do |t|
+      t.to_s
+    end
+    cp lib_paths, _("libs/ext")
   end
 end
 
@@ -159,7 +169,7 @@ define 'soot', base_dir: "soot", layout: soot_layout do |soot|
   }).merge(
     soot_libs + heros_libs + [project('jasmin'), project('heros') ]
   )
-  compile.with soot_libs + [ project('jasmin'), project('heros') ]
+  compile.with soot_libs + ant_lib + [ project('jasmin'), project('heros') ]
   compile.using :lint => 'none'
   compile.from [
     "soot/generated/singletons",
