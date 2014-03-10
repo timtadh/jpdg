@@ -37,10 +37,12 @@ import soot.jimple.toolkits.callgraph.Targets;
 
 import soot.toolkits.graph.Block;
 import soot.toolkits.graph.BlockGraph;
+import soot.toolkits.graph.UnitGraph;
 import soot.toolkits.graph.BriefBlockGraph;
 import soot.toolkits.graph.BriefUnitGraph;
 import soot.toolkits.graph.MHGPostDominatorsFinder;
 import soot.toolkits.graph.DominatorNode;
+import soot.toolkits.graph.DominatorTree;
 import soot.toolkits.graph.CytronDominanceFrontier;
 import soot.toolkits.graph.pdg.EnhancedBlockGraph;
 import soot.toolkits.graph.pdg.MHGDominatorTree;
@@ -65,6 +67,7 @@ public class pDG_Builder {
     soot.SootMethod method;
     soot.Body body;
     BlockGraph cfg;
+    UnitGraph ucfg;
 
     int entry_uid;
     HashMap<Integer,Integer> block_uids = new HashMap<Integer,Integer>();
@@ -189,13 +192,17 @@ public class pDG_Builder {
         for (Iterator<Block> i = cfg.iterator(); i.hasNext(); ) {
             Block y = i.next();
             int uid_y = block_uids.get(y.getIndexInMethod());
-            for (Object o : rdf.getDominanceFrontierOf(pdom_tree.getDode(y))) {
-                Block x = ((Block)((DominatorNode)o).getGode());
-                int uid_x = block_uids.get(x.getIndexInMethod());
-                g.addEdge(uid_x, uid_y, "cdg");
-                if (uid_x != uid_y) {
-                    has_parent.put(uid_y, true);
+            try {
+                for (Object o : rdf.getDominanceFrontierOf(pdom_tree.getDode(y))) {
+                    Block x = ((Block)((DominatorNode)o).getGode());
+                    int uid_x = block_uids.get(x.getIndexInMethod());
+                    if (uid_x != uid_y) {
+                        g.addEdge(uid_x, uid_y, "cdg");
+                        has_parent.put(uid_y, true);
+                    }
                 }
+            } catch (java.lang.RuntimeException e) {
+                System.err.println("CDG builder swallowing > " + e);
             }
         }
 
