@@ -38,10 +38,12 @@ import (
   "io/ioutil"
   "compress/gzip"
   "strings"
+  "strconv"
 )
 
 import (
   "github.com/timtadh/getopt"
+  "github.com/timtadh/data-structures/types"
 )
 
 import (
@@ -55,13 +57,16 @@ var ErrorCodes map[string]int = map[string]int{
     "badint":5,
 }
 
-var UsageMessage string = "slice [options] <graphs>"
+var UsageMessage string = "slice [options] --prefix=<string> <graphs>"
 var ExtendedMessage string = `
 slices a graph around a set of nodes with respect to a direction
 
 Options
     -h, --help                          print this message
     -s, --stdin                         read from stdin instead
+    -p, --prefix=<string>               select nodes from this prefix
+    -c, --candidates=<int> > 0          show labels with counts greater than
+                                        <int>
 
 Specs
     <graphs>                            path to graph files
@@ -145,15 +150,25 @@ func InputDir(input_dir string) (reader io.Reader, closeall func()) {
     }
 }
 
+func ParseInt(str string) int {
+    i, err := strconv.Atoi(str)
+    if err != nil {
+        fmt.Fprintf(os.Stderr, "Error parsing '%v' expected an int\n", str)
+        Usage(ErrorCodes["badint"])
+    }
+    return i
+}
+
 func main() {
 
     args, optargs, err := getopt.GetOpt(
         os.Args[1:],
-        "hsp:",
+        "hsp:c:",
         []string{
           "help",
           "stdin",
           "prefix=",
+          "candidates=",
         },
     )
     if err != nil {
@@ -162,15 +177,20 @@ func main() {
     }
 
     stdin := false
+    candidates := false
+    minimum := 0
     prefix := ""
     for _, oa := range optargs {
         switch oa.Opt() {
         case "-h", "--help": Usage(0)
         case "-s", "--stdin": stdin = true
         case "-p", "--prefix": prefix = oa.Arg()
+        case "-c", "--candidates":
+            candidates = true
+            minimum = ParseInt(oa.Arg())
         }
     }
-    if prefix == "" {
+    if prefix == "" && !candidates {
         fmt.Fprintln(os.Stderr, "You must specify a prefix to slice on")
         Usage(ErrorCodes["opts"])
     }
@@ -194,7 +214,18 @@ func main() {
 
     G, err := graph.LoadGraph(reader)
 
-    slices := G.Slice(prefix)
+    if candidates {
+        for k, v, n := G.Index.PrefixFind([]byte(prefix))(); n != nil; k, v, n = n() {
+            label := string(k.(types.ByteSlice))
+            count := len(v.([]*graph.Vertex))
+            if count >= minimum {
+                fmt.Println(label, count)
+            }
+        }
+        return
+    }
+
+    slices := G.Slice(prefix, graph.Both)
     for _, slice := range slices {
         g, err := slice.Serialize()
         if err != nil {

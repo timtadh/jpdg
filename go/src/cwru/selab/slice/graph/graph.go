@@ -76,7 +76,7 @@ type Edge struct {
 }
 
 type Graph struct {
-    index *trie.TST
+    Index *trie.TST
     V map[int64]*Vertex "vertices"
     E map[Arc]*Edge "edges"
     kids map[int64][]int64
@@ -152,7 +152,7 @@ func parseLine(line []byte) (line_type string, data []byte) {
 
 func newGraph() *Graph {
     return &Graph{
-        index: new(trie.TST),
+        Index: new(trie.TST),
         V: make(map[int64]*Vertex),
         E: make(map[Arc]*Edge),
         kids: make(map[int64][]int64),
@@ -202,8 +202,8 @@ func (self *Graph) addVertex(v *Vertex) {
     }
     var vertices []*Vertex
     var err error
-    if self.index.Has([]byte(v.Label)) {
-        obj, err := self.index.Get([]byte(v.Label))
+    if self.Index.Has([]byte(v.Label)) {
+        obj, err := self.Index.Get([]byte(v.Label))
         if err != nil {
             panic(err)
         }
@@ -213,10 +213,10 @@ func (self *Graph) addVertex(v *Vertex) {
     if vertices == nil {
         panic("verticies == nil")
     }
-    err = self.index.Put([]byte(v.Label), vertices)
+    err = self.Index.Put([]byte(v.Label), vertices)
     if err != nil {
         file, _ := os.Create("panic.dot")
-        fmt.Fprintln(file, self.index.Dotty())
+        fmt.Fprintln(file, self.Index.Dotty())
         file.Close()
         fmt.Println(v.Label)
         panic(err)

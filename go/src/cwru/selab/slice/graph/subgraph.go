@@ -36,13 +36,15 @@ import (
 )
 import "github.com/timtadh/data-structures/types"
 
-func (self *Graph) Slice(prefix string) (slices []*Graph) {
-    next := self.index.PrefixFind([]byte(prefix))
+type Direction func(*Graph, *Vertex) *Graph
+
+func (self *Graph) Slice(prefix string, dir Direction) (slices []*Graph) {
+    next := self.Index.PrefixFind([]byte(prefix))
     for label, obj, next := next(); next != nil; label, obj, next = next() {
         matches := obj.([]*Vertex)
         fmt.Fprintln(os.Stderr, string(label.(types.ByteSlice)), len(matches))
         for _, match := range matches {
-            graph := self.slice(match)
+            graph := dir(self, match)
             if len(graph.V) > 1 {
                 slices = append(slices, graph)
             }
@@ -52,9 +54,30 @@ func (self *Graph) Slice(prefix string) (slices []*Graph) {
     return slices
 }
 
-func (self *Graph) slice(start *Vertex) *Graph {
+func Both(self *Graph, start *Vertex) *Graph {
     g := newGraph()
+    forward(self, g, start)
+    backward(self, g, start)
+    return g
+}
 
+func Backward(self *Graph, start *Vertex) *Graph {
+    g := newGraph()
+    forward(self, g, start)
+    return g
+}
+
+func add_edges(self, g *Graph) {
+    for u := range g.V {
+        for v := range g.V {
+            if e, has := self.E[Arc{u,v}]; has {
+                g.addEdge(e)
+            }
+        }
+    }
+}
+
+func backward(self, g *Graph, start *Vertex) {
     seen := make(map[int64]bool)
     var visit func(*Vertex)
     visit = func(n *Vertex) {
@@ -70,14 +93,31 @@ func (self *Graph) slice(start *Vertex) *Graph {
         }
     }
     visit(start)
+    add_edges(self, g)
+}
 
-    for u := range g.V {
-        for v := range g.V {
-            if e, has := self.E[Arc{u,v}]; has {
-                g.addEdge(e)
+func Forward(self *Graph, start *Vertex) *Graph {
+    g := newGraph()
+    forward(self, g, start)
+    return g
+}
+
+func forward(self, g *Graph, start *Vertex) {
+    seen := make(map[int64]bool)
+    var visit func(*Vertex)
+    visit = func(n *Vertex) {
+        seen[n.Id] = true
+        if strings.HasSuffix(n.Label, "-entry") {
+            return
+        }
+        g.addVertex(n)
+        for _, kid := range self.kids[n.Id] {
+            if !seen[kid] {
+                visit(self.V[kid])
             }
         }
     }
-
-    return g
+    visit(start)
+    add_edges(self, g)
 }
+
