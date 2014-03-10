@@ -106,7 +106,6 @@ public class pDG_test {
         assertThat(pDG.g.hasEdge(0, 6, "cdg"), is(true));
         assertThat(pDG.g.hasEdge(1, 4, "cdg"), is(true));
         assertThat(pDG.g.hasEdge(4, 5, "cdg"), is(true));
-        assertThat(pDG.g.hasEdge(4, 4, "cdg"), is(true));
     }
 
     @Test
