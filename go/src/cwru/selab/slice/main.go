@@ -241,18 +241,25 @@ func main() {
 
     G, err := graph.LoadGraph(reader)
 
+    var slices []*graph.Graph
     if candidates {
         for k, v, n := G.Index.PrefixFind([]byte(prefix))(); n != nil; k, v, n = n() {
             label := string(k.(types.ByteSlice))
-            count := len(v.([]*graph.Vertex))
-            if count >= minimum {
-                fmt.Println(label, count)
+            matches := v.([]*graph.Vertex)
+            if len(matches) >= minimum {
+                fmt.Fprintln(os.Stderr, label, len(matches))
+                for _, match := range matches {
+                    graph := direction(G, match, filtered_edges)
+                    if len(graph.V) > 1 {
+                        slices = append(slices, graph)
+                    }
+                }
             }
         }
-        return
+        fmt.Fprintln(os.Stderr)
+    } else {
+        slices = G.Slice(prefix, direction, filtered_edges)
     }
-
-    slices := G.Slice(prefix, direction, filtered_edges)
     for _, slice := range slices {
         g, err := slice.Serialize()
         if err != nil {
