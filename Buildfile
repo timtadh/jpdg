@@ -1,15 +1,25 @@
+#!/usr/bin/env ruby
+
 require 'rubygems'
 require 'buildr'
 require 'rake'
 Java.load
 require "antwrap"
 
+if File::exists?('parsemis/Buildfile')
+  pwd = Dir.pwd
+  Dir.chdir File::join(pwd, 'parsemis')
+  load "./Buildfile"
+  puts project('parsemis').base_dir
+  Dir.chdir pwd
+end
+
 repositories.remote << 'http://mirrors.ibiblio.org/pub/mirrors/maven2/'
 #repositories.remote << 'http://repo1.maven.org/'
 #repositories.remote << 'http://mvnrepository.com/'
 Project.local_task :run
 
-  
+
 baksmali_url = 'https://bitbucket.org/JesusFreke/smali/downloads/baksmali-2.0.2.jar'
 baksmali_2 = "baksmali:baksmali:jar:2.0.2"
 download(artifact(baksmali_2)=>baksmali_url)
@@ -37,6 +47,11 @@ soot_libs = [
 
 ant_lib = [
   'org.apache.ant:ant:jar:1.7.0',
+]
+
+parsemis_libs = [
+  'antlr:antlr:jar:2.7.6',
+  'org.prefuse:prefuse:jar:beta-20071021',
 ]
 
 jpdg_libs = [
@@ -143,6 +158,21 @@ define 'jasmin', base_dir: "jasmin", layout: jasmin_layout do
   package(:jar)
 end
 
+#parsemis_layout = Layout.new
+#parsemis_layout[:source, :main, :java] = "src"
+##parsemis_layout[:target,] = "target"
+##parsemis_layout[:target, :main] = "target/main"
+##parsemis_layout[:target, :main, :classes] = "target/main/classes"
+
+
+#define 'parsemis', base_dir: "parsemis", layout: parsemis_layout do
+  #project.version = 'git-master'
+  #mkdir_p _('target/classes')
+  #compile.with parsemis_libs
+  ##compile.options.target = '1.5'
+  ##compile.options.source = '1.5'
+  #package(:jar)
+#end
 
 heros_layout = Layout.new
 heros_layout[:source, :main, :java] = "src"
