@@ -10,3 +10,6 @@
 [submodule "smali"]
 	path = smali
 	url = https://code.google.com/p/smali/
+[submodule "parsemis"]
+	path = parsemis
+	url = https://github.com/timtadh/parsemis.git
