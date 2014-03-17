@@ -29,7 +29,7 @@
 # or retrieve version 2.1 at their website:
 #   http://www.gnu.org/licenses/lgpl-2.1.html
 
-import os, sys
+import os, sys, copy, glob
 
 from optutils import conf
 
@@ -42,6 +42,7 @@ types = dict(conf.default_types)
 types['shell_str'] = shell_str
 
 schema = {
+    'jpdg_root': 'shell_str',
     'subjects' : {
         conf.UNDEFINED_KEYS: {
             'base_dir': 'shell_str',
@@ -69,4 +70,47 @@ class Configuration(conf.BaseConfig):
         all_paths += paths
         return super(Configuration, cls).__new__(
                 cls, schema, *all_paths, types=types, local_updates=local_updates)
+
+    def _expose_dict(self):
+        d = copy.deepcopy(self._d)
+        for name, subject in d['subjects'].iteritems():
+            d['subjects'][name] = self.annotate(d, subject)
+        self._exposed = self._create_section(d)
+
+    def annotate(self, conf, subject):
+        subject = dict(subject)
+        lib_jars = list()
+        for lib_dir in subject['lib_dirs']:
+            lib_jars += glob.glob(os.path.join(lib_dir, '*.jar'))
+        subject['lib_jars'] = lib_jars
+        subject['soot_classpath'] = ':'.join((
+            ':'.join(subject['class_dirs']),
+            ':'.join(subject['lib_jars']),
+            subject['classpath'],
+        ))
+        subject['jpdg_cmd'] = [
+            'java',
+            '-jar',
+            self.jpdg_jar,
+            subject['soot_classpath'],
+            subject['target'],
+        ]
+        return subject
+
+    @property
+    def jpdg_jar(self):
+        return os.path.join(self._d['jpdg_root'], 'target', 'jpdg-git-master.jar')
+
+    @property
+    def parsemis_jar(self):
+        return os.path.join(self._d['jpdg_root'], 'parsemis', 'target', 'parsemis-git-master.jar')
+
+    @property
+    def parsemis_cmd(self):
+        return [
+            'java',
+            '-jar',
+            self.parsemis_jar,
+            '--help',
+        ]
 

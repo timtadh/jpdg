@@ -41,17 +41,44 @@ __version__ = 'git master'
 
 add_code('version')
 add_code('config')
+add_code('jpdg')
 
 def version():
     '''Print version and exits'''
     log('version :', __version__)
     sys.exit(error_codes['version'])
 
+def build_jpdg(conf):
+    cwd = os.getcwd()
+    os.chdir(conf.jpdg_root)
+    try:
+        subprocess.check_call([
+            'buildr', 'jpdg:package', 'test=no'
+        ])
+    finally:
+        os.chdir(cwd)
 
-def load_conf(util, path):
-    if not os.path.exists(path):
-        return None
-    return util.read_file_or_die(path)
+def run_jpdg(conf, name, subject, output, no_build=False, jpdg_logs=False):
+    if not no_build:
+        build_jpdg(conf)
+    cmd = list(subject.jpdg_cmd)
+    cmd.append(output)
+    if not jpdg_logs:
+        p = subprocess.Popen(cmd,
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    else:
+        p = subprocess.Popen(cmd)
+    if p.wait() != 0:
+        if not jpdg_logs:
+            print >>sys.stderr, p.stdout.read()
+            print >>sys.stderr, p.stderr.read()
+        print >>sys.stderr, "Calling jpdg failed"
+        print >>sys.stderr
+        for arg in cmd[:-1]:
+            print >>sys.stderr, arg, '\\'
+        print >>sys.stderr, cmd[-1]
+        sys.exit(error_codes['jpdg'])
+
 
 @optutils.main(
     'usage: mine [-c subjects.conf] <subject> <command>',
@@ -99,11 +126,10 @@ def main(argv, util, parser):
     """
 
     @util.command(
-        'usage: validate',
+        'print the runtime config for a subject',
         '''
-        Example:
+        mine <subject> validate
 
-            mine subject.conf validate
 
         Options
             -h, help                      print this message
@@ -111,15 +137,52 @@ def main(argv, util, parser):
         'h',
         ['help',],
     )
-    def validate(argv, util, parser, conf):
+    def validate(argv, util, parser, conf, name, subject):
 
         opts, args = parser(argv)
         for opt, arg in opts:
             if opt in ('-h', '--help',):
                 util.usage()
 
-        print ' '.join(args)
-        print 'running with', conf
+        print 'running with', name, subject
+
+
+    @util.command(
+        'runs jpdg on the subject',
+        '''
+        mine <subject> jpdg -o <path>
+
+        Options
+            -h, help                      print this message
+            -o, output=<path>             (required) where to put the output
+            --no-build-jpdg               don't build jpdg
+            --jpdg-logs                   show the jpdg log output
+        ''',
+        'ho:',
+        ['help', 'output=', 'no-build-jpdg', 'jpdg-logs'],
+    )
+    def jpdg(argv, util, parser, conf, name, subject):
+
+        output = None
+        no_build = False
+        jpdg_logs = False
+        opts, args = parser(argv)
+        for opt, arg in opts:
+            if opt in ('-h', '--help',):
+                util.usage()
+            elif opt in ('-o', '--output',):
+                output = os.path.abspath(arg)
+            elif opt in ('--no-build-jpdg',):
+                no_build = True
+            elif opt in ('--jpdg-logs',):
+                jpdg_logs = True
+
+        if output is None:
+            print >>sys.stderr, "You must supply the output file"
+            util.usage()
+
+        run_jpdg(conf, name, subject, output, no_build, jpdg_logs)
+
 
     opts, args = parser(argv)
     cpaths = list()
@@ -142,16 +205,21 @@ def main(argv, util, parser):
 
     if len(args) == 0:
         print >>sys.stderr, "You must give a subject"
+        print >>sys.stderr, "valid subjects are", conf.subjects.keys()
+        for err in conf.errors:
+            print >>sys.stderr, 'WARNING', err
         util.usage(error_codes['option'])
 
     subject_name = args[0]
     if subject_name not in conf.subjects:
         print >>sys.stderr, "Subject %s not in config files." % subject_name
-        print >>sys.stderr, conf.subjects.keys()
+        print >>sys.stderr, "valid subjects are", conf.subjects.keys()
+        for err in conf.errors:
+            print >>sys.stderr, 'WARNING', err
         util.usage(error_codes['option'])
     subject = conf.subjects[subject_name]
 
-    util.run_command(args[1:], subject)
+    util.run_command(args[1:], conf, subject_name, subject)
 
 if __name__ == '__main__':
     sys.exit(main(sys.argv[1:]))
