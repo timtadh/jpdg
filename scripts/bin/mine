@@ -1,0 +1,158 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
+# Tim Henderson (tadh@case.edu)
+#
+# This file is part of jpdg a library to generate Program Dependence Graphs
+# from JVM bytecode.
+#
+# Copyright (c) 2014, Tim Henderson, Case Western Reserve University
+#   Cleveland, Ohio 44106
+#   All Rights Reserved.
+#
+# This library is free software; you can redistribute it and/or
+# modify it under the terms of the GNU Lesser General Public
+# License as published by the Free Software Foundation; either
+# version 2.1 of the License, or (at your option) any later version.
+#
+# This library is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+# Lesser General Public License for more details.
+#
+# You should have received a copy of the GNU Lesser General Public
+# License along with this library; if not, write to the Free Software
+# Foundation, Inc.,
+#   51 Franklin Street, Fifth Floor,
+#   Boston, MA  02110-1301
+#   USA
+# or retrieve version 2.1 at their website:
+#   http://www.gnu.org/licenses/lgpl-2.1.html
+
+
+import os, sys, time, subprocess
+
+import optutils
+from optutils import output, log, error_codes, add_code
+
+from jpdg import config
+
+__version__ = 'git master'
+
+add_code('version')
+add_code('config')
+
+def version():
+    '''Print version and exits'''
+    log('version :', __version__)
+    sys.exit(error_codes['version'])
+
+
+def load_conf(util, path):
+    if not os.path.exists(path):
+        return None
+    return util.read_file_or_die(path)
+
+@optutils.main(
+    'usage: mine [-c subjects.conf] <subject> <command>',
+    '''
+    Example:
+
+        $ mine jgit validate
+
+    Options
+        -h, help                      print this message
+        -v, version                   print the version
+        -c, config=<config>           config for subjects
+
+    Specs
+        <subject>                     name of the subject to process
+        <config>                      configuration file path
+
+    Configuration File Format
+        The config file should be written in json. By default `mine` looks at
+        $(pwd)/subjects.conf, and $HOME/.jpdg-subjects.conf for files and
+        cascades them (with the current working directory taking precedence).
+
+        Schema
+            {
+                "subjects" : {
+                    subject_name: {
+                        "base_dir": <path>,
+                        "classpath": <path>,
+                        "lib_dirs": [ <path> ],
+                        "class_dirs": [ <path> ],
+                        "target": <path>,
+                    }
+                }
+            }
+
+        Specs
+            <path>                    a file path. May contain shell vars
+    ''',
+    'hvc:',
+    ['help', 'version', 'config=']
+)
+def main(argv, util, parser):
+    """
+    The main entry point to the program
+    """
+
+    @util.command(
+        'usage: validate',
+        '''
+        Example:
+
+            mine subject.conf validate
+
+        Options
+            -h, help                      print this message
+        ''',
+        'h',
+        ['help',],
+    )
+    def validate(argv, util, parser, conf):
+
+        opts, args = parser(argv)
+        for opt, arg in opts:
+            if opt in ('-h', '--help',):
+                util.usage()
+
+        print ' '.join(args)
+        print 'running with', conf
+
+    opts, args = parser(argv)
+    cpaths = list()
+    for opt, arg in opts:
+        if opt in ('-h', '--help',):
+            util.usage()
+        elif opt in ('-v', '--version',):
+            version()
+        elif opt in ('-c', '--config',):
+            cpaths.append(arg)
+
+    try:
+        conf = config.Configuration(cpaths)
+    except Exception, e:
+        print >>sys.stderr, "Could not load the configuration"
+        for err in e.args:
+            print >>sys.stderr, err
+        print >>sys.stderr
+        util.usage(error_codes['config'])
+
+    if len(args) == 0:
+        print >>sys.stderr, "You must give a subject"
+        util.usage(error_codes['option'])
+
+    subject_name = args[0]
+    if subject_name not in conf.subjects:
+        print >>sys.stderr, "Subject %s not in config files." % subject_name
+        print >>sys.stderr, conf.subjects.keys()
+        util.usage(error_codes['option'])
+    subject = conf.subjects[subject_name]
+
+    util.run_command(args[1:], subject)
+
+if __name__ == '__main__':
+    sys.exit(main(sys.argv[1:]))
+
