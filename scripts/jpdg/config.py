@@ -71,7 +71,7 @@ class Configuration(conf.BaseConfig):
         return super(Configuration, cls).__new__(
                 cls, schema, *all_paths, types=types, local_updates=local_updates)
 
-    def _expose_dict(self):
+    def _export_dict(self):
         d = copy.deepcopy(self._d)
         for name, subject in d['subjects'].iteritems():
             d['subjects'][name] = self.annotate(d, subject)
