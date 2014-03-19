@@ -29,7 +29,7 @@
 # or retrieve version 2.1 at their website:
 #   http://www.gnu.org/licenses/lgpl-2.1.html
 
-import sys, os, threading, time, subprocess
+import sys, os, threading, time, subprocess, fcntl
 from collections import deque
 
 class Slicer(object):
@@ -37,8 +37,9 @@ class Slicer(object):
     def __init__(self, debug=False):
         self.debug = debug
         self.p = subprocess.Popen(['slicebot'],
-                stdin=subprocess.PIPE,
-                stdout=subprocess.PIPE)
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+        )
         self.slicer_lock = threading.Lock()
         self.lines = deque()
         self.lines_cv = threading.Condition()
@@ -64,6 +65,7 @@ class Slicer(object):
         self.p.kill()
         if not from_read:
             self.read_thread.join()
+        self.p.wait()
         if self.debug:
             print >>sys.stderr, "closed"
             if from_read:
@@ -149,14 +151,11 @@ class Slicer(object):
         while True:
             while "\n" not in chunk:
                 try:
-                    data = self.p.stdout.read(1)
+                    data = os.read(self.p.stdout.fileno(), 4096)
                     if not data:
                         self._close(True)
                         return
                     chunk += data
-                except socket.timeout, t:
-                    ## timeout retry
-                    pass
                 except Exception, e:
                     print >>sys.stderr, e, type(e)
                     self._close(True)

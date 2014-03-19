@@ -225,48 +225,6 @@ func GetCandidates(G *graph.Graph, prefix string, minimum int) (candidates Candi
     return candidates
 }
 
-func Reader(reader io.Reader, errors chan<- error) (<-chan byte) {
-    writer := make(chan byte)
-    go func() {
-        defer close(writer)
-        var err error
-        var n int
-        b := make([]byte, 1)
-        for err == nil {
-            n, err = reader.Read(b)
-            if n > 0 {
-                writer<-b[0]
-            }
-        }
-        if !netutils.IsEOF(err) {
-            errors<-err
-        }
-    }()
-    return writer
-}
-
-func Writer(writer io.WriteCloser, errors chan<- error) (chan<- []byte) {
-    reader := make(chan []byte)
-    go func() {
-        defer func() {
-            err := writer.Close()
-            if err != nil {
-                errors<-err
-            }
-        }()
-        for bytes := range reader {
-            for len(bytes) > 0 {
-                n, err := writer.Write(bytes)
-                if err != nil {
-                    errors<-err
-                }
-                bytes = bytes[n:]
-            }
-        }
-    }()
-    return reader
-}
-
 func ErrorHandler() (chan<- error) {
     errors := make(chan error)
     go func() {
@@ -447,7 +405,7 @@ func main() {
     }
 
     errors := ErrorHandler()
-    Connection(Reader(os.Stdin, errors), Writer(os.Stdout, errors), errors)
+    Connection(netutils.Reader(os.Stdin, errors), netutils.Writer(os.Stdout, errors), errors)
 }
 
 
