@@ -30,27 +30,22 @@ package graph
  */
 
 import (
-  "os"
-  "fmt"
   "strings"
 )
-import "github.com/timtadh/data-structures/types"
+// import "github.com/timtadh/data-structures/types"
 
 type Direction func(*Graph, *Vertex, map[string]bool) *Graph
 
 func (self *Graph) Slice(prefix string, dir Direction, filtered_edges map[string]bool) (slices []*Graph) {
     next := self.Index.PrefixFind([]byte(prefix))
-    for label, obj, next := next(); next != nil; label, obj, next = next() {
+    for _, obj, next := next(); next != nil; _, obj, next = next() {
         matches := obj.([]*Vertex)
-        fmt.Fprintln(os.Stderr, string(label.(types.ByteSlice)), len(matches))
+        // fmt.Fprintln(os.Stderr, string(label.(types.ByteSlice)), len(matches))
         for _, match := range matches {
             graph := dir(self, match, filtered_edges)
-            if len(graph.V) > 1 {
-                slices = append(slices, graph)
-            }
+            slices = append(slices, graph)
         }
     }
-    fmt.Fprintln(os.Stderr)
     return slices
 }
 
