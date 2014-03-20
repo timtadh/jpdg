@@ -118,7 +118,7 @@ define 'jpdg', layout: jpdg_layout do |soot|
   project.version = 'git-master'
   run.using main: ['edu.cwru.jpdg.JPDG']
   package(:jar).with(:manifest => {
-    'Main-Class'=>'edu.cwru.jpdg.JDPG'
+    'Main-Class'=>'edu.cwru.jpdg.JPDG'
   }).merge(
     [ 'libs/soot.jar' ] + jpdg_libs
   )
@@ -127,19 +127,19 @@ define 'jpdg', layout: jpdg_layout do |soot|
   test.using :java_args => ['-ea']
   task :export_libs do |t|
     for lib in jpdg_libs
-      p lib
       artifact(lib).invoke
     end
     mkdir_p _("libs/ext")
     lib_paths = Array.new(project.compile.dependencies).reject do |t|
       ## remove dependencies which are not downloaded artifacts
-      t.class == String 
+      t.class == String
     end .collect do |t|
       t.to_s
     end
     cp lib_paths, _("libs/ext")
   end
 end
+
 
 jasmin_layout = Layout.new
 jasmin_layout[:source, :main, :java] = "src"
@@ -156,6 +156,33 @@ define 'jasmin', base_dir: "jasmin", layout: jasmin_layout do
   compile.options.target = '1.5'
   compile.options.source = '1.5'
   package(:jar)
+end
+
+def git_commit(dir)
+  commit = `git --git-dir='#{dir}' rev-parse HEAD`.strip()
+  puts "the commit = " + commit
+  return commit
+end
+
+jasmin_jar = File::join(project('jpdg').base_dir, 'libs', 'jasmin.jar')
+
+task jasmin_jar do
+  if File::exists?('jasmin-version') and File::exists?(jasmin_jar)
+    f = File::open('jasmin-version')
+    built_commit = f.read().strip()
+    f.close()
+  else
+    build_commit = 'none'
+  end
+  git_dir = File::join(project('jpdg').base_dir, '.git', 'modules', 'jasmin')
+  cur_commit = git_commit(git_dir)
+  if built_commit != cur_commit
+      project('jasmin')::task('package').invoke
+      cp File::join(project('jasmin').base_dir, 'target', 'jasmin-git-master.jar'), jasmin_jar
+      f = File::open('jasmin-version', 'w')
+      f.write(cur_commit)
+      f.close()
+  end
 end
 
 #parsemis_layout = Layout.new
@@ -191,15 +218,16 @@ end
 
 soot_layout = Layout.new
 soot_layout[:source, :main, :java] = "src"
+soot_layout[:source, :test, :java] = "tests"
 
 define 'soot', base_dir: "soot", layout: soot_layout do |soot|
   project.version = 'git-master'
   package(:jar).with(:manifest => {
     'Main-Class'=>'soot.Main'
   }).merge(
-    soot_libs + heros_libs + [project('jasmin'), project('heros') ]
+    soot_libs + heros_libs + jasmin_libs + [ 'libs/jasmin.jar', project('heros') ]
   )
-  compile.with soot_libs + ant_lib + [ project('jasmin'), project('heros') ]
+  compile.with soot_libs + ant_lib + jasmin_libs + [ 'libs/jasmin.jar', project('heros') ]
   compile.using :lint => 'none'
   compile.from [
     "soot/generated/singletons",

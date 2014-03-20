@@ -1,5 +1,7 @@
 buildr jpdg:export_libs
 
+export JPDG_ROOT=$(pwd)
+
 for file in $(find $(pwd)/libs/ext -name '*.jar'); do
   export CLASSPATH=$file:$CLASSPATH;
 done
