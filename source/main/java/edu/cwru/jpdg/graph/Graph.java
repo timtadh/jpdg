@@ -53,10 +53,10 @@ public class Graph {
 
     public Graph() { }
 
-    public int addNode(String label, String package_name, String class_name, String method_name, String type, int start_l, int start_c, int end_l, int end_c) {
+    public int addNode(String label, String extra, String package_name, String class_name, String method_name, String type, int start_l, int start_c, int end_l, int end_c) {
         int uid = next_uid;
         next_uid++;
-        nodes.put(uid, new Node(uid, label_num(label), package_name, class_name, method_name, type, start_l, start_c, end_l, end_c, this));
+        nodes.put(uid, new Node(uid, label_num(label), extra, package_name, class_name, method_name, type, start_l, start_c, end_l, end_c, this));
         node_labels.put(uid, label_num(label));
         return uid;
     }

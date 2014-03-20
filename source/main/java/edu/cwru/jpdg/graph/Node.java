@@ -37,6 +37,7 @@ public class Node {
 
     public int id;
     public int label;
+    public String extra;
     public String package_name;
     public String class_name;
     public String method_name;
@@ -47,15 +48,16 @@ public class Node {
     public int end_column = -1;
     Graph g;
 
-    public Node(int id, int label,
+    public Node(int id, int label, String extra,
                 String package_name, String class_name, String method_name, String type,
                 int start_line, int start_column, int end_line, int end_column, Graph g) {
         this.id = id;
+        this.label = label;
+        this.extra = extra;
         this.package_name = package_name;
         this.class_name = class_name;
         this.method_name = method_name;
         this.type = type;
-        this.label = label;
         this.start_line = start_line;
         this.start_column = start_column;
         this.end_line = end_line;
@@ -67,6 +69,7 @@ public class Node {
         Map<String,Object> M = new LinkedHashMap<String,Object>();
         M.put("id", id);
         M.put("label", g.label(id));
+        M.put("extra", extra);
         M.put("package_name", package_name);
         M.put("class_name", class_name);
         M.put("method_name", method_name);

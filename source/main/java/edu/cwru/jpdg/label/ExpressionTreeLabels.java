@@ -154,7 +154,12 @@ class TreeBuilder {
     }
 
     Node process_ref(soot.jimple.Ref ref) {
-        return new Node(ref.getType());
+        if (ref instanceof soot.jimple.FieldRef) {
+            return (new Node(ref.getType())).addkid(
+                    new Node(((soot.jimple.FieldRef)ref).getField()));
+        } else {
+            return new Node(ref.getType());
+        }
     }
 
     Node process_immediate(soot.Immediate konst) {

@@ -65,17 +65,18 @@ import edu.cwru.jpdg.label.InstructionLabels;
 public class JPDG {
 
     public static void main(String[] args) {
-        if (args.length != 2) {
-            System.out.println("Must supply classpath and base-dir");
+        if (args.length != 3) {
+            System.out.println("Must supply classpath, base-dir, output-file");
             System.exit(1);
         }
         String cp = args[0];
         String base_dir = args[1];
+        String output_file = args[2];
         List<String> dirs = new ArrayList<String>();
         dirs.add(base_dir);
 
         soot.Scene S = runSoot(cp, dirs);
-        writeGraph(build_PDG(S), "out.pdg");
+        writeGraph(build_PDG(S), output_file);
     }
 
     public static soot.Scene runSoot(String cp, List<String> dirs) {

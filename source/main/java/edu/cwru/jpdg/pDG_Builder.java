@@ -112,7 +112,7 @@ public class pDG_Builder {
 
     void assign_uids() {
         this.entry_uid = g.addNode(
-            method.getSignature() + "-entry",
+            method.getSignature() + "-entry", "",
             klass.getPackageName(), klass.getName(), method.getSignature(),
             "entry",
             method.getJavaSourceStartLineNumber(),
@@ -124,7 +124,7 @@ public class pDG_Builder {
             Block b = i.next();
             int uid = g.addNode(
                 // klass.getPackageName() + klass.getName() + method.getName() + b.getIndexInMethod(),
-                "",
+                "", b.toString(),
                 klass.getPackageName(), klass.getName(), method.getSignature(),
                 lm.nodeType(b),
                 b.getHead().getJavaSourceStartLineNumber(),
