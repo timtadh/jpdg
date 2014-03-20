@@ -8,6 +8,9 @@ import os, sys, time, subprocess
 from getopt import getopt, GetoptError
 import csv, json, cgi
 
+from jpdg.dotty import dotty
+
+
 __version__ = 'git master'
 
 error_codes = {
@@ -91,67 +94,6 @@ def delete_file_if_exists(path):
     if os.path.exists(path):
         os.unlink(path)
     return path
-
-def dotty(inf, of, html=True):
-
-    def string(label):
-        if html:
-            label = (
-                label.replace("'", "\\'").
-                replace('"', '\\"').
-                replace('\n', '\\n')
-            )
-            label = cgi.escape(label).encode('ascii', 'xmlcharrefreplace')
-            s = ''.join(
-                '<tr><td align="left">' + line + "</td></tr>"
-                for line in label.split('\\n')
-            )
-        else:
-            s = (
-                label.replace('"', '').
-                replace('"', '').
-                replace('\\', '').
-                replace('\n', '')
-            )
-        return s
-    def edge(line):
-        of.write('n%d->n%d [label="%s"];\n' % (line['src'], line['targ'],
-        line['label']))
-    def vertex(line):
-        if html:
-            template = 'n%d [shape=rect, fontname="Courier", label=<<table border="0">%s</table>>];\n'
-            of.write(template % (line['id'], string(line['label'])))
-        else:
-            of.write('n%d [shape=rect, label="%s"];\n' % (line['id'], string(line['label'])))
-    def finalize():
-        of.write('\n}\n')
-    def start(graph_count):
-        of.write('digraph G%d {\n' % graph_count)
-
-    finalized = True
-    graph_count = 0
-    for i, line in enumerate(inf):
-        if finalized:
-            graph_count += 1
-            start(graph_count)
-        if '\t' not in line:
-            finalize()
-            finalized = True
-            continue
-        finalized = False
-        lt, data = line.split('\t', 1)
-        data = json.loads(data)
-        if i % 100 == 0: print >>sys.stderr, i, lt
-        if lt == 'edge':
-            edge(data)
-        elif lt == 'vertex':
-            vertex(data)
-        elif lt == 'labels':
-            pass
-        else:
-            raise Exception, "Unexpected line time %s" % lt
-    if not finalized:
-        finalize()
 
 def main(args):
 

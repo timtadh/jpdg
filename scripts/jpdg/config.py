@@ -111,6 +111,5 @@ class Configuration(conf.BaseConfig):
             'java',
             '-jar',
             self.parsemis_jar,
-            '--help',
         ]
 

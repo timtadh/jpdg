@@ -112,6 +112,7 @@ class Slicer(object):
             for e in filtered_edges:
                 args.append('-e')
                 args.append(e)
+        print args
         return self.command('SLICE', ' '.join(args), self.slice_response)
 
     def slice_response(self):
@@ -121,24 +122,7 @@ class Slicer(object):
         elif cmd != "GRAPHS":
             raise Exception, "bad command recieved %s %s" % (cmd, data)
         else:
-            lines = [
-                line
-                for line in data.strip().split('\n')
-            ]
-            graphs = list()
-            graph = list()
-            graphs.append(graph)
-            for line in lines:
-                if not line:
-                    graph = list()
-                    graphs.append(graph)
-                else:
-                    graph.append(line)
-            return [
-                graph
-                for graph in graphs
-                if graph
-            ]
+            return data
 
     def command(self, cmd, data, response):
         with self.slicer_lock:
@@ -201,10 +185,7 @@ def _loop(slicer):
                 for c in slicer.candidates(data):
                     print c
             elif command == 'slice' and data is not None:
-                for c in slicer.slice(data, filtered_edges=['ddg', 'cdg']):
-                    for line in c:
-                        print line
-                    print
+                print slicer.slice(data, filtered_edges=['ddg', 'cdg'])
             else:
                 print slicer.command(command.upper(), data if data is not None else
                         '', slicer.generic_response)
