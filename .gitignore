@@ -8,3 +8,6 @@ reports
 *.png
 *.dot
 *.pDG
+jasmin-version
+subjects.conf
+

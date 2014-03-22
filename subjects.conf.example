@@ -1,0 +1,16 @@
+{
+    "jpdg_root": "$JPDG_ROOT",
+    "subjects": {
+        "mayan": {
+            "base_dir": "/path/to/checkout",
+            "classpath": "$JAVA_JARS",
+            "lib_dirs": [
+                "/path/to/directory/with/lib/jars"
+            ],
+            "class_dirs": [
+                "/path/to/build/dir"
+            ],
+            "target": "/path/to/target/class/files/to/scan"
+        },
+    }
+}
