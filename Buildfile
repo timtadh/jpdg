@@ -123,20 +123,35 @@ define 'jpdg', layout: jpdg_layout do |soot|
     [ 'libs/soot.jar' ] + jpdg_libs
   )
   compile.with [ 'libs/soot.jar' ] + jpdg_libs
-  test.with 'org.hamcrest:hamcrest-all:jar:1.3'
+  test_libs = [
+     'org.hamcrest:hamcrest-all:jar:1.3',
+  ]
+  test.with test_libs
   test.using :java_args => ['-ea']
   task :export_libs do |t|
     for lib in jpdg_libs
       artifact(lib).invoke
     end
+    for lib in test_libs
+      artifact(lib).invoke
+    end
     mkdir_p _("libs/ext")
     lib_paths = Array.new(project.compile.dependencies).reject do |t|
       ## remove dependencies which are not downloaded artifacts
-      t.class == String
+      t.class != Buildr::Artifact
     end .collect do |t|
       t.to_s
     end
     cp lib_paths, _("libs/ext")
+    test_paths = Array.new(project.test.dependencies).reject do |t|
+      ## remove dependencies which are not downloaded artifacts
+      t.class != Buildr::Artifact
+    end .collect do |t|
+      p t.class
+      t.to_s
+    end
+    p test_paths
+    cp test_paths, _("libs/ext")
   end
 end
 

@@ -59,24 +59,27 @@ import soot.jimple.internal.JimpleLocal;
 import soot.jimple.internal.JimpleLocalBox;
 
 import edu.cwru.jpdg.graph.Graph;
+import edu.cwru.jpdg.label.LabelMaker;
 import edu.cwru.jpdg.label.ExpressionTreeLabels;
 import edu.cwru.jpdg.label.InstructionLabels;
 
 public class JPDG {
 
     public static void main(String[] args) {
-        if (args.length != 3) {
-            System.out.println("Must supply classpath, base-dir, output-file");
+        if (args.length != 4) {
+            System.out.println("Must supply classpath, base-dir, label-type, output-file");
+            System.out.println("Label Types are: inst, expr-tree,");
             System.exit(1);
         }
         String cp = args[0];
         String base_dir = args[1];
-        String output_file = args[2];
+        String label_type = args[2];
+        String output_file = args[3];
         List<String> dirs = new ArrayList<String>();
         dirs.add(base_dir);
 
         soot.Scene S = runSoot(cp, dirs);
-        writeGraph(build_PDG(S), output_file);
+        writeGraph(build_PDG(S, label_type), output_file);
     }
 
     public static soot.Scene runSoot(String cp, List<String> dirs) {
@@ -123,7 +126,15 @@ public class JPDG {
         }));
     }
 
-    public static Graph build_PDG(soot.Scene S) {
+    public static Graph build_PDG(soot.Scene S, String label_type) {
+        LabelMaker lm = null;
+        if (label_type == "inst") {
+            lm = new InstructionLabels();
+        } else if (label_type == "expr-tree") {
+            lm = new ExpresionTreeLabels();
+        } else {
+            throw new RuntimeException("uknown label type");
+        }
         soot.util.Chain<soot.SootClass> classes = S.getApplicationClasses();
         return PDG_Builder.build(new ExpressionTreeLabels(), classes);
     }
