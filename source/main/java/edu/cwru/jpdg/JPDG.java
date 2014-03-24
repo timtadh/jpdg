@@ -128,12 +128,12 @@ public class JPDG {
 
     public static Graph build_PDG(soot.Scene S, String label_type) {
         LabelMaker lm = null;
-        if (label_type == "inst") {
+        if (label_type.equals("inst")) {
             lm = new InstructionLabels();
-        } else if (label_type == "expr-tree") {
-            lm = new ExpresionTreeLabels();
+        } else if (label_type.equals("expr-tree")) {
+            lm = new ExpressionTreeLabels();
         } else {
-            throw new RuntimeException("uknown label type");
+            throw new RuntimeException("uknown label type: " + label_type);
         }
         soot.util.Chain<soot.SootClass> classes = S.getApplicationClasses();
         return PDG_Builder.build(new ExpressionTreeLabels(), classes);

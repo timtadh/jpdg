@@ -147,10 +147,8 @@ define 'jpdg', layout: jpdg_layout do |soot|
       ## remove dependencies which are not downloaded artifacts
       t.class != Buildr::Artifact
     end .collect do |t|
-      p t.class
       t.to_s
     end
-    p test_paths
     cp test_paths, _("libs/ext")
   end
 end

@@ -85,6 +85,7 @@ def run_jpdg(conf, name, subject, output, no_build=False, jpdg_logs=False):
         build_jpdg(conf)
     cmd = list(subject.jpdg_cmd)
     cmd.append(output)
+    print >>sys.stderr, '>', ' '.join(cmd)
     if not jpdg_logs:
         p = subprocess.Popen(cmd,
             stdout=subprocess.PIPE, stderr=subprocess.PIPE)
@@ -116,7 +117,7 @@ def run_parsemis(conf, dotty_output, parsemis_output, no_build=False,
         '--minimumEdgeCount=3',
         '--maximumNodeCount=10',
     ]
-    log(cmd)
+    print >>sys.stderr, '>', ' '.join(cmd)
     if not parsemis_logs:
         p = subprocess.Popen(cmd,
             stdout=subprocess.PIPE, stderr=subprocess.PIPE)
@@ -132,6 +133,18 @@ def run_parsemis(conf, dotty_output, parsemis_output, no_build=False,
             print >>sys.stderr, arg, '\\'
         print >>sys.stderr, cmd[-1]
         sys.exit(error_codes['parsemis'])
+
+def run_graphviz(dot_file):
+    cmd = [
+        'sed', '-i', '/transparent/d', dot_file
+    ]
+    print >>sys.stderr, '>', ' '.join(cmd)
+    subprocess.check_call(cmd)
+    cmd = [
+        'dot', '-Tpng', '-O', dot_file
+    ]
+    print >>sys.stderr, '>', ' '.join(cmd)
+    subprocess.check_call(cmd)
 
 @optutils.main(
     'usage: mine [-c subjects.conf] <subject> <command>',
@@ -318,6 +331,8 @@ def main(argv, util, parser):
                 )
                 if os.stat(parsemis_output).st_size == 0:
                     os.unlink(parsemis_output)
+                else:
+                    run_graphviz(parsemis_output)
         finally:
             slicer.close()
 
