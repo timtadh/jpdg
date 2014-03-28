@@ -10,4 +10,4 @@ reports
 *.pDG
 jasmin-version
 subjects.conf
-
+out*
