@@ -39,7 +39,7 @@ except:
 import optutils
 from optutils import output, log, error_codes, add_code
 
-from jpdg import config
+from jpdg import config, mine
 from jpdg.slicer import Slicer
 from jpdg.dotty import dotty
 
@@ -54,97 +54,6 @@ def version():
     '''Print version and exits'''
     log('version :', __version__)
     sys.exit(error_codes['version'])
-
-def build_jpdg(conf):
-    cwd = os.getcwd()
-    os.chdir(conf.jpdg_root)
-    try:
-        subprocess.check_call([
-            'buildr', 'jpdg:package', 'test=no'
-        ])
-    finally:
-        os.chdir(cwd)
-
-def build_parsemis(conf):
-    cwd = os.getcwd()
-    os.chdir(conf.jpdg_root)
-    try:
-        subprocess.check_call([
-            'buildr', 'parsemis:package', 'test=no'
-        ])
-    finally:
-        os.chdir(cwd)
-
-def build_slicer(conf):
-    subprocess.check_call([
-        'go', 'install', 'cwru/selab/slice/slicebot',
-    ])
-
-def run_jpdg(conf, name, subject, output, no_build=False, jpdg_logs=False):
-    if not no_build:
-        build_jpdg(conf)
-    cmd = list(subject.jpdg_cmd)
-    cmd.append(output)
-    print >>sys.stderr, '>', ' '.join(cmd)
-    if not jpdg_logs:
-        p = subprocess.Popen(cmd,
-            stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    else:
-        p = subprocess.Popen(cmd)
-    if p.wait() != 0:
-        if not jpdg_logs:
-            print >>sys.stderr, p.stdout.read()
-            print >>sys.stderr, p.stderr.read()
-        print >>sys.stderr, "Calling jpdg failed"
-        print >>sys.stderr
-        for arg in cmd[:-1]:
-            print >>sys.stderr, arg, '\\'
-        print >>sys.stderr, cmd[-1]
-        sys.exit(error_codes['jpdg'])
-
-def run_parsemis(conf, dotty_output, parsemis_output, no_build=False,
-        parsemis_logs=False, pattern_min='50%'):
-    if not no_build:
-        build_parsemis(conf)
-    cmd = list(conf.parsemis_cmd)
-    cmd += [
-        '--graphFile='+dotty_output,
-        '--outputFile='+parsemis_output,
-        '--closeGraph=true',
-        '--algorithm=gspan',
-        '--minimumFrequency='+pattern_min,
-        '--minimumNodeCount=3',
-        '--minimumEdgeCount=3',
-        '--maximumNodeCount=10',
-    ]
-    print >>sys.stderr, '>', ' '.join(cmd)
-    if not parsemis_logs:
-        p = subprocess.Popen(cmd,
-            stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    else:
-        p = subprocess.Popen(cmd)
-    if p.wait() != 0:
-        if not parsemis_logs:
-            print >>sys.stderr, p.stdout.read()
-            print >>sys.stderr, p.stderr.read()
-        print >>sys.stderr, "Calling parsemis failed"
-        print >>sys.stderr
-        for arg in cmd[:-1]:
-            print >>sys.stderr, arg, '\\'
-        print >>sys.stderr, cmd[-1]
-        sys.exit(error_codes['parsemis'])
-
-def run_graphviz(dot_file):
-    cmd = [
-        'sed', '-i', '/transparent/d', dot_file
-    ]
-    print >>sys.stderr, '>', ' '.join(cmd)
-    subprocess.check_call(cmd)
-    cmd = [
-        'dot', '-Tpng', '-O', dot_file
-    ]
-    print >>sys.stderr, '>', ' '.join(cmd)
-    subprocess.check_call(cmd)
 
 @optutils.main(
     'usage: mine [-c subjects.conf] <subject> <command>',
@@ -247,7 +156,7 @@ def main(argv, util, parser):
             print >>sys.stderr, "You must supply the output file"
             util.usage()
 
-        run_jpdg(conf, name, subject, output, no_build, jpdg_logs)
+        mine.run_jpdg(conf, name, subject, output, no_build, jpdg_logs)
 
     @util.command(
         'runs slice on the subject',
@@ -300,41 +209,12 @@ def main(argv, util, parser):
 
         util.assert_dir_exists(output)
 
-        if not no_build:
-            build_jpdg(conf)
-            build_parsemis(conf)
-            build_slicer(conf)
-        jpdg_output = os.path.join(output, 'graph.pdg')
-        run_jpdg(conf, name, subject, jpdg_output, True, jpdg_logs)
-
-        slicer = Slicer()
-        try:
-            slicer.load(jpdg_output)
-            for i, c in enumerate(slicer.candidates('3:call')):
-                if c['count'] < minimum:
-                    continue
-                slices = slicer.slice(c['label'], filtered_edges=['cfg'])
-                memfile = StringIO(slices)
-                dotty_output = os.path.join(output, 'slice.%d.dot' % i)
-                with open(dotty_output, 'w') as f:
-                    dotty(memfile, f, html=False)
-                if os.stat(dotty_output).st_size == 0:
-                    os.unlink(dotty_output)
-                    continue
-                parsemis_output = os.path.join(output, "patterns.%d.dot" % i)
-                run_parsemis(
-                    conf,
-                    dotty_output,
-                    parsemis_output,
-                    no_build=True,
-                    pattern_min=pattern_min,
-                )
-                if os.stat(parsemis_output).st_size == 0:
-                    os.unlink(parsemis_output)
-                else:
-                    run_graphviz(parsemis_output)
-        finally:
-            slicer.close()
+        with Slicer() as slicer:
+            patterns = mine.patterns(
+                conf, name, subject, output, slicer,
+                no_build, jpdg_logs, minimum, pattern_min,
+            )
+            patterns = mine.filter(patterns)
 
     opts, args = parser(argv)
     cpaths = list()
