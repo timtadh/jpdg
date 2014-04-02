@@ -36,7 +36,7 @@ import edu.cwru.jpdg.pDG_Builder;
 public class InstructionLabels implements LabelMaker {
 
     public String label(pDG_Builder pDG, int uid, Block b) {
-        return "block uid: " + uid + "\n" + b.toString();
+        return b.toString();
     }
 
     public String nodeType(Block b) {

@@ -39,6 +39,7 @@ import (
   "compress/gzip"
   "strings"
   "strconv"
+  "encoding/json"
 )
 
 import (
@@ -333,6 +334,47 @@ func ParseSlice(line string) (prefix string, direction graph.Direction, filtered
     return prefix, direction, filtered_edges, nil
 }
 
+func ParseSubGraph(line string) (nodes []int64, filtered_edges map[string]bool, err error) {
+    var argv []string
+    split := strings.Split(line, " ")
+    for _, s := range split {
+        s = strings.TrimSpace(s)
+        if s != "" {
+            argv = append(argv, s)
+        }
+    }
+
+    args, optargs, err := getopt.GetOpt(
+        argv,
+        "e:",
+        []string{
+          "edge-filter=",
+        },
+    )
+    if err != nil {
+        return nil, nil, err
+    }
+
+    filtered_edges = make(map[string]bool)
+    for _, oa := range optargs {
+        switch oa.Opt() {
+        case "-e", "--edge-filter":
+            filtered_edges[oa.Arg()] = true
+        }
+    }
+
+    for _, s := range args {
+        i, err := strconv.Atoi(s)
+        if err != nil {
+            return nil, nil, err
+        } else {
+            nodes = append(nodes, int64(i))
+        }
+    }
+
+    return nodes, filtered_edges, nil
+}
+
 func (self *LoadedState) Command(cmd string, rest []byte) State {
     switch cmd {
     case "CANDIDATES":
@@ -360,6 +402,31 @@ func (self *LoadedState) Command(cmd string, rest []byte) State {
             }
             s = append(s, []byte("\n")...)
             self.Writer<-net.EncodeMessage("GRAPHS", s)
+        }
+    case "NODE":
+        i, err := strconv.Atoi(string(rest))
+        if err != nil {
+            self.HandleError(err)
+        } else {
+            node := self.G.V[int64(i)]
+            bytes, err := json.Marshal(node.Rest)
+            if err != nil {
+                self.HandleError(err)
+            } else {
+                self.Writer<-net.EncodeMessage("NODE", bytes)
+            }
+        }
+    case "SUBGRAPH":
+        nodes, filtered_edges, err := ParseSubGraph(string(rest))
+        if err != nil {
+            self.HandleError(err)
+        } else {
+            g, err := self.G.SubGraph(nodes, filtered_edges).Serialize()
+            if err != nil {
+                self.HandleError(err)
+            } else {
+                self.Writer<-net.EncodeMessage("GRAPH", g)
+            }
         }
     default:
         self.HandleError(fmt.Errorf("unexpected command, '%s'", cmd))

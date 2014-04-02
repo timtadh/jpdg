@@ -49,6 +49,16 @@ func (self *Graph) Slice(prefix string, dir Direction, filtered_edges map[string
     return slices
 }
 
+func (self *Graph) SubGraph(nodes []int64, filtered_edges map[string]bool) *Graph {
+    g := newGraph()
+    for _, nid := range nodes {
+        v := self.V[nid]
+        g.addVertex(v)
+    }
+    add_edges(self, g, filtered_edges)
+    return g
+}
+
 func Both(self *Graph, start *Vertex, filtered_edges map[string]bool) *Graph {
     g := newGraph()
     forward(self, g, start, filtered_edges)

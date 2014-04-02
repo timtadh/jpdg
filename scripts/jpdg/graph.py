@@ -33,6 +33,11 @@
 import os, sys, json
 from dot_tools.dot_graph import SimpleGraph
 
+try:
+    from cStringIO import StringIO
+except:
+    from StringIO import StringIO
+
 
 class Graph(SimpleGraph):
 
@@ -42,17 +47,25 @@ class Graph(SimpleGraph):
     def parents(self, t):
         return self.reindex.get(t, list())
 
+    def dotty_nid(self, nid):
+        if isinstance(nid, basestring) and nid.isdigit():
+            return 'n%s' % nid
+        elif isinstance(nid, int):
+            return 'n%d' % nid
+        else:
+            return str(nid)
+
     @staticmethod
-    def build(type, *args):
+    def build(type, *args, **kwargs):
         self = None
         if type == 'dot':
             self = Graph()
-            sg = SimpleGraph.build(*args)
+            sg = SimpleGraph.build(*args, **kwargs)
             self.nodes = sg.nodes
             self.edges = sg.edges
             self.index = sg.index
         elif type == 'veg':
-            self = Graph.build_veg(*args)
+            self = Graph.build_veg(*args, **kwargs)
         else:
             raise Exception, "Unknown graph type"
 
@@ -67,7 +80,10 @@ class Graph(SimpleGraph):
         return self
 
     @staticmethod
-    def build_veg(inf):
+    def build_veg(inf, label='label'):
+        label_name = label
+        if isinstance(inf, basestring):
+            inf = StringIO(inf)
         self = Graph()
         self.node_lines = dict()
 
@@ -78,7 +94,7 @@ class Graph(SimpleGraph):
             self.edges.append((src, targ, label))
 
         def vertex(line):
-            label = line['label']
+            label = line[label_name]
             self.nodes[line['id']] = label
             self.node_lines[line['id']] = line
             self.index[label] = nodes = self.index.get(label, list())

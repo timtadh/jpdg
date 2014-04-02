@@ -45,6 +45,7 @@ from jpdg import config
 from jpdg.slicer import Slicer
 from jpdg.dotty import dotty
 from jpdg.graph import Graph
+from jpdg.pattern import build_patterns
 
 
 def build_jpdg(conf):
@@ -138,16 +139,12 @@ def run_graphviz(dot_file):
     print >>sys.stderr, '>', ' '.join(cmd)
     subprocess.check_call(cmd)
 
-Pattern = collections.namedtuple('Pattern',
-    ['pattern', 'slice', 'graph', 'label'])
-
 def patterns(conf, name, subject, output, slicer,
              no_build=False, jpdg_logs=False, minimum=1, pattern_min='50%'):
 
     if not no_build:
         build_jpdg(conf)
         build_parsemis(conf)
-        build_slicer(conf)
     jpdg_output = os.path.join(output, 'graph.pdg')
     run_jpdg(conf, name, subject, jpdg_output, True, jpdg_logs)
 
@@ -176,104 +173,16 @@ def patterns(conf, name, subject, output, slicer,
             os.unlink(parsemis_output)
         else:
             run_graphviz(parsemis_output)
-            patterns.append(
-                Pattern(parsemis_output, dotty_output, jpdg_output, c['label']))
+            patterns += build_patterns(
+                parsemis_output, dotty_output, c['label'], slicer)
 
     return patterns
 
-def parse_examples(comment):
-    comment = comment.strip()
-    s = comment[comment.index('[')+1:-1].replace(' ', '')
-    return [
-        e
-        for e in s.split(',')
-        if e
-    ]
 
-def match(center, pattern, graph):
-    def match(u, v):
-        pgmap = dict()
-        seen_u = set()
-        seen_v = set()
-        def visit(a, b):
-            seen_u.add(a)
-            seen_v.add(b)
-            for akid in pattern.kids(a):
-                if akid in seen_u:
-                    continue
-                for bkid in graph.kids(b):
-                    if pattern.nodes[akid] == graph.nodes[bkid]:
-                        if bkid not in seen_v:
-                            visit(akid, bkid)
-                        break
-                else:
-                    # unmatched kid
-                    return
-            for apar in pattern.parents(a):
-                if apar in seen_u:
-                    continue
-                for bpar in graph.parents(b):
-                    if pattern.nodes[apar] == graph.nodes[bpar]:
-                        if bpar not in seen_v:
-                            visit(apar, bpar)
-                        break
-                else:
-                    return
-            pgmap[a] = b
-
-        visit(u,v)
-        if set(pgmap.keys()) != set(pattern.nodes.keys()):
-            return None
-        return pgmap
-
-    matches = list()
-    for u in pattern.index[center]:
-        for v in graph.index[center]:
-            m = match(u, v)
-            if m is not None:
-                matches.append(m)
-    return matches
-
-MappedPattern = collections.namedtuple('MappedPattern',
-    ['pattern', 'files', 'examples'])
-
-def filter(patterns):
-
-    with open(patterns[0].graph) as f:
-        pdg = Graph.build('veg', f)
-
-    mapped_patterns = list()
-    for p in patterns:
-        with open(p.slice) as f:
-            sast = parse(f.read())
-
-        slices = dict()
-        for gast in sast.children:
-            graph = Graph.build('dot', gast)
-            slices[gast.children[1].label] = graph
-
-        with open(p.pattern) as f:
-            past = parse(f.read())
-
-        subgraphs = list()
-        for i in xrange(0, len(past.children), 2):
-            gast = past.children[i]
-            comment = past.children[i+1].children[0].label
-            graph = Graph.build('dot', gast)
-            labels = set(label for label in graph.nodes.itervalues())
-            if p.label in labels:
-                subgraphs.append((graph,
-                    [slices[e] for e in parse_examples(comment)]))
-
-        for pattern, examples in subgraphs:
-            ex_maps = list()
-            for ex in examples:
-                for m in match(p.label, pattern, ex):
-                    pdg_map = dict()
-                    for pn, sn in m.iteritems():
-                        pdg_map[pn] = pdg.node_lines[int(sn.replace('n', ''))]
-                    ex_maps.append(pdg_map)
-            mapped_patterns.append(MappedPattern(pattern, p, ex_maps))
-
-    return mapped_patterns
+def graphviz_patterns(patterns, output):
+    for i, p in enumerate(patterns):
+        p_file = os.path.join(output, 'final_pattern.%d.dot' % i)
+        with open(p_file, 'w') as f:
+            f.write(p.dotty())
+        run_graphviz(p_file)
 

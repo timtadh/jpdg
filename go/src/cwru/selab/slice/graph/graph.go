@@ -270,9 +270,7 @@ func LoadVertex(data []byte) (vertex *Vertex, err error) {
         Rest: make(jsonObject),
     }
     for k,v := range obj {
-        if k != "id" && k != "label" {
-            vertex.Rest[k] = v
-        }
+        vertex.Rest[k] = v
     }
     return vertex, nil
 }

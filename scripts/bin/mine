@@ -209,12 +209,13 @@ def main(argv, util, parser):
 
         util.assert_dir_exists(output)
 
+        mine.build_slicer(conf)
         with Slicer() as slicer:
             patterns = mine.patterns(
                 conf, name, subject, output, slicer,
                 no_build, jpdg_logs, minimum, pattern_min,
             )
-            patterns = mine.filter(patterns)
+            mine.graphviz_patterns(patterns, output)
 
     opts, args = parser(argv)
     cpaths = list()

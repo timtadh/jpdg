@@ -29,7 +29,7 @@
 # or retrieve version 2.1 at their website:
 #   http://www.gnu.org/licenses/lgpl-2.1.html
 
-import sys, os, threading, time, subprocess, fcntl
+import sys, os, threading, time, subprocess, fcntl, json
 from collections import deque
 
 class Slicer(object):
@@ -118,7 +118,6 @@ class Slicer(object):
             for e in filtered_edges:
                 args.append('-e')
                 args.append(e)
-        print args
         return self.command('SLICE', ' '.join(args), self.slice_response)
 
     def slice_response(self):
@@ -126,6 +125,37 @@ class Slicer(object):
         if cmd == "ERROR":
             raise Exception(data)
         elif cmd != "GRAPHS":
+            raise Exception, "bad command recieved %s %s" % (cmd, data)
+        else:
+            return data
+
+    def node(self, nid):
+        args = [str(nid)]
+        return self.command('NODE', ' '.join(args), self.node_response)
+
+    def node_response(self):
+        cmd, data = self.get_line()
+        if cmd == "ERROR":
+            raise Exception(data)
+        elif cmd != "NODE":
+            raise Exception, "bad command recieved %s %s" % (cmd, data)
+        else:
+            return json.loads(data)
+
+    def sub_graph(self, nodes, filtered_edges=None):
+        args = list()
+        if filtered_edges is not None:
+            for e in filtered_edges:
+                args.append('-e')
+                args.append(e)
+        args += [str(nid) for nid in nodes]
+        return self.command('SUBGRAPH', ' '.join(args), self.subgraph_response)
+
+    def subgraph_response(self):
+        cmd, data = self.get_line()
+        if cmd == "ERROR":
+            raise Exception(data)
+        elif cmd != "GRAPH":
             raise Exception, "bad command recieved %s %s" % (cmd, data)
         else:
             return data
