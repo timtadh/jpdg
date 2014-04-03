@@ -295,8 +295,7 @@ func (self *StartState) Command(cmd string, rest []byte) State {
     return self
 }
 
-func ParseSlice(line string) (prefix string, direction graph.Direction, filtered_edges map[string]bool, err error) {
-    var argv []string
+func MakeArgv(line string) (argv []string) {
     split := strings.Split(line, " ")
     for _, s := range split {
         s = strings.TrimSpace(s)
@@ -304,6 +303,10 @@ func ParseSlice(line string) (prefix string, direction graph.Direction, filtered
             argv = append(argv, s)
         }
     }
+    return argv
+}
+
+func ParseSlice(argv []string) (prefix string, direction graph.Direction, filtered_edges map[string]bool, err error) {
     _, optargs, err := getopt.GetOpt(
         argv,
         "p:d:e:",
@@ -334,16 +337,7 @@ func ParseSlice(line string) (prefix string, direction graph.Direction, filtered
     return prefix, direction, filtered_edges, nil
 }
 
-func ParseSubGraph(line string) (nodes []int64, filtered_edges map[string]bool, err error) {
-    var argv []string
-    split := strings.Split(line, " ")
-    for _, s := range split {
-        s = strings.TrimSpace(s)
-        if s != "" {
-            argv = append(argv, s)
-        }
-    }
-
+func ParseSubGraph(argv []string) (nodes []int64, filtered_edges map[string]bool, err error) {
     args, optargs, err := getopt.GetOpt(
         argv,
         "e:",
@@ -375,6 +369,46 @@ func ParseSubGraph(line string) (nodes []int64, filtered_edges map[string]bool, 
     return nodes, filtered_edges, nil
 }
 
+func ParsePartition(argv []string) (attr string, filtered_edges map[string]bool, err error) {
+    _, optargs, err := getopt.GetOpt(
+        argv,
+        "e:a:",
+        []string{
+          "edge-filter=",
+          "attr=",
+        },
+    )
+    if err != nil {
+        return "", nil, err
+    }
+
+    filtered_edges = make(map[string]bool)
+    for _, oa := range optargs {
+        switch oa.Opt() {
+        case "-e", "--edge-filter":
+            filtered_edges[oa.Arg()] = true
+        case "-a", "--attr":
+            attr = oa.Arg()
+        }
+    }
+
+    return attr, filtered_edges, nil
+}
+
+func SerializeGraphs(graphs []*graph.Graph) ([]byte, error) {
+    var s []byte
+    for _, g := range graphs {
+        bytes, err := g.Serialize()
+        if err != nil {
+            return nil, err
+        }
+        s = append(s, bytes...)
+        s = append(s, []byte("\n")...)
+    }
+    s = append(s, []byte("\n")...)
+    return s, nil
+}
+
 func (self *LoadedState) Command(cmd string, rest []byte) State {
     switch cmd {
     case "CANDIDATES":
@@ -385,23 +419,17 @@ func (self *LoadedState) Command(cmd string, rest []byte) State {
             ),
         )
     case "SLICE":
-        prefix, dir, fe, err := ParseSlice(string(rest))
+        prefix, dir, fe, err := ParseSlice(MakeArgv(string(rest)))
         if err != nil {
             self.HandleError(err)
         } else {
             slices := self.G.Slice(prefix, dir, fe)
-            var s []byte
-            for _, slice := range slices {
-                g, err := slice.Serialize()
-                if err != nil {
-                    self.HandleError(err)
-                    return self
-                }
-                s = append(s, g...)
-                s = append(s, []byte("\n")...)
+            s, err := SerializeGraphs(slices)
+            if err != nil {
+                self.HandleError(err)
+            } else {
+                self.Writer<-net.EncodeMessage("GRAPHS", s)
             }
-            s = append(s, []byte("\n")...)
-            self.Writer<-net.EncodeMessage("GRAPHS", s)
         }
     case "NODE":
         i, err := strconv.Atoi(string(rest))
@@ -417,7 +445,7 @@ func (self *LoadedState) Command(cmd string, rest []byte) State {
             }
         }
     case "SUBGRAPH":
-        nodes, filtered_edges, err := ParseSubGraph(string(rest))
+        nodes, filtered_edges, err := ParseSubGraph(MakeArgv(string(rest)))
         if err != nil {
             self.HandleError(err)
         } else {
@@ -426,6 +454,23 @@ func (self *LoadedState) Command(cmd string, rest []byte) State {
                 self.HandleError(err)
             } else {
                 self.Writer<-net.EncodeMessage("GRAPH", g)
+            }
+        }
+    case "PARTITION":
+        attr, filtered_edges, err := ParsePartition(MakeArgv(string(rest)))
+        if err != nil {
+            self.HandleError(err)
+        } else {
+            partition, err := self.G.Partition(attr, filtered_edges)
+            if err != nil {
+                self.HandleError(err)
+            } else {
+                s, err := SerializeGraphs(partition)
+                if err != nil {
+                    self.HandleError(err)
+                } else {
+                    self.Writer<-net.EncodeMessage("GRAPHS", s)
+                }
             }
         }
     default:

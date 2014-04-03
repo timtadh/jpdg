@@ -211,7 +211,7 @@ def main(argv, util, parser):
 
         mine.build_slicer(conf)
         with Slicer() as slicer:
-            patterns = mine.patterns(
+            patterns = mine.partition_patterns(
                 conf, name, subject, output, slicer,
                 no_build, jpdg_logs, minimum, pattern_min,
             )

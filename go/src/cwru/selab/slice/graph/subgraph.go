@@ -30,6 +30,8 @@ package graph
  */
 
 import (
+  "fmt"
+  "os"
   "strings"
 )
 // import "github.com/timtadh/data-structures/types"
@@ -58,6 +60,30 @@ func (self *Graph) SubGraph(nodes []int64, filtered_edges map[string]bool) *Grap
     add_edges(self, g, filtered_edges)
     return g
 }
+
+func (self *Graph) Partition(attr string, filtered_edges map[string]bool) (partition []*Graph, err error) {
+    parts := make(map[string]*Graph)
+    for _, v := range self.V {
+        if _, has := v.Rest[attr]; !has {
+            return nil, fmt.Errorf("attr not on node")
+        }
+        value := v.Rest[attr].(string)
+        g, has := parts[value]
+        if !has {
+            g = newGraph()
+            parts[value] = g
+        } else {
+            g.addVertex(v)
+        }
+    }
+    fmt.Fprintln(os.Stderr, len(parts))
+    for _, g := range parts {
+        add_edges(self, g, filtered_edges)
+        partition = append(partition, g)
+    }
+    return partition, nil
+}
+
 
 func Both(self *Graph, start *Vertex, filtered_edges map[string]bool) *Graph {
     g := newGraph()

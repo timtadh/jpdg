@@ -160,6 +160,15 @@ class Slicer(object):
         else:
             return data
 
+    def partition(self, attr, filtered_edges=None):
+        args = list()
+        if filtered_edges is not None:
+            for e in filtered_edges:
+                args.append('-e')
+                args.append(e)
+        args += ['-a', attr]
+        return self.command('PARTITION', ' '.join(args), self.slice_response)
+
     def command(self, cmd, data, response):
         with self.slicer_lock:
             msg = cmd + " " + data.encode('base64').replace('\n', '') + '\n'
@@ -171,7 +180,7 @@ class Slicer(object):
         while True:
             while "\n" not in chunk:
                 try:
-                    data = os.read(self.p.stdout.fileno(), 4096)
+                    data = os.read(self.p.stdout.fileno(), 4096*64)
                     if not data:
                         self._close(True)
                         return

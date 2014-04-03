@@ -178,6 +178,49 @@ def patterns(conf, name, subject, output, slicer,
 
     return patterns
 
+def partition_patterns(conf, name, subject, output, slicer,
+             no_build=False, jpdg_logs=False, minimum=1, pattern_min='50%'):
+
+    if not no_build:
+        build_jpdg(conf)
+        build_parsemis(conf)
+    jpdg_output = os.path.join(output, 'graph.pdg')
+    run_jpdg(conf, name, subject, jpdg_output, True, jpdg_logs)
+
+    slicer.load(jpdg_output)
+    print 'loaded'
+    partition = slicer.partition('method_name', filtered_edges=['cfg'])
+    print 'parted'
+    memfile = StringIO(partition)
+    dotty_output = os.path.join(output, 'partition.dot')
+    print 'dotty'
+    with open(dotty_output, 'w') as f:
+        dotty(memfile, f, html=False)
+    if os.stat(dotty_output).st_size == 0:
+        os.unlink(dotty_output)
+        return list()
+
+    print 'dottied'
+    parsemis_output = os.path.join(output, "parsemis_patterns.dot")
+    run_parsemis(
+        conf,
+        dotty_output,
+        parsemis_output,
+        no_build=True,
+        pattern_min=pattern_min,
+    )
+
+    patterns = list()
+
+    if os.stat(parsemis_output).st_size == 0:
+        os.unlink(parsemis_output)
+    else:
+        run_graphviz(parsemis_output)
+        patterns += build_patterns(
+            parsemis_output, dotty_output, None, slicer)
+
+    return patterns
+
 
 def graphviz_patterns(patterns, output):
     for i, p in enumerate(patterns):

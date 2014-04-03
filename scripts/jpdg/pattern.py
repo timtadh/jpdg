@@ -49,7 +49,7 @@ class Pattern(object):
         header = 'digraph {'
         footer = '}'
         s = self.pattern.dotty('Pattern', True, True)
-        for i, e in enumerate(self.examples):
+        for i, e in enumerate(self.examples[:10]):
             s += '\n'*2 + e.dotty('E%d' % i, True, True)
         s += '\n'
         return header + '\n' + s + footer
@@ -76,7 +76,10 @@ def build_patterns(pattern_file, slice_file, label, slicer):
             comment = past.children[i+1].children[0].label
             sg = Graph.build('dot', gast)
             labels = set(label for label in sg.nodes.itervalues())
-            if label in labels:
+            if ((label is None and
+                  any(l.startswith('3:call') and 'Iterator' not in l
+                      for l in labels))
+              or label in labels):
                 subgraphs.append((sg,
                     [slices[e] for e in parse_examples(comment)]))
         return subgraphs
@@ -156,11 +159,31 @@ def match(center, pattern, graph):
             return None
         return pgmap
 
-    matches = list()
-    for u in pattern.index[center]:
-        for v in graph.index[center]:
-            m = match(u, v)
-            if m is not None:
+    def centered_match(center):
+        matches = list()
+        for u in pattern.index[center]:
+            for v in graph.index[center]:
+                m = match(u, v)
+                if m is not None:
+                    matches.append(m)
+        return matches
+
+    def uncentered_match():
+        matches = list()
+        seen_v = set()
+        for u, label in pattern.nodes.iteritems():
+            for v in graph.index[label]:
+                m = match(u, v)
+                if m is None:
+                    continue
+                if any(b in seen_v for b in m.itervalues()):
+                    continue
+                for b in m.itervalues():
+                    seen_v.add(b)
                 matches.append(m)
-    return matches
+        return matches
+
+    if center is not None:
+        return centered_match(center)
+    return uncentered_match()
 
