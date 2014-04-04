@@ -76,10 +76,10 @@ def build_patterns(pattern_file, slice_file, label, slicer):
             comment = past.children[i+1].children[0].label
             sg = Graph.build('dot', gast)
             labels = set(label for label in sg.nodes.itervalues())
-            if ((label is None and
-                  any(l.startswith('3:call') and 'Iterator' not in l
-                      for l in labels))
-              or label in labels):
+            if ((label is None or label in labels)
+                    and any(l.startswith('3:call') and 'Iterator' not in l
+                            for l in labels)
+               ):
                 subgraphs.append((sg,
                     [slices[e] for e in parse_examples(comment)]))
         return subgraphs
@@ -159,19 +159,10 @@ def match(center, pattern, graph):
             return None
         return pgmap
 
-    def centered_match(center):
-        matches = list()
-        for u in pattern.index[center]:
-            for v in graph.index[center]:
-                m = match(u, v)
-                if m is not None:
-                    matches.append(m)
-        return matches
-
-    def uncentered_match():
+    def get_matches(starts):
         matches = list()
         seen_v = set()
-        for u, label in pattern.nodes.iteritems():
+        for u, label in starts:
             for v in graph.index[label]:
                 m = match(u, v)
                 if m is None:
@@ -182,6 +173,12 @@ def match(center, pattern, graph):
                     seen_v.add(b)
                 matches.append(m)
         return matches
+
+    def centered_match(center):
+        return get_matches((u, center) for u in pattern.index[center])
+
+    def uncentered_match():
+        return get_matches(pattern.nodes.iteritems())
 
     if center is not None:
         return centered_match(center)
