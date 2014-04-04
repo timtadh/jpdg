@@ -214,6 +214,7 @@ def main(argv, util, parser):
             patterns = mine.partition_patterns(
                 conf, name, subject, output, slicer,
                 no_build, jpdg_logs, minimum, pattern_min,
+                args
             )
             mine.graphviz_patterns(patterns, output)
 

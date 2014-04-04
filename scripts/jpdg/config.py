@@ -110,6 +110,7 @@ class Configuration(conf.BaseConfig):
     def parsemis_cmd(self):
         return [
             'java',
+            '-Xmx4g',
             '-jar',
             self.parsemis_jar,
         ]

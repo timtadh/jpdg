@@ -95,13 +95,19 @@ def run_jpdg(conf, name, subject, output, no_build=False, jpdg_logs=False):
         print >>sys.stderr, cmd[-1]
         sys.exit(error_codes['jpdg'])
 
-def run_parsemis(conf, dotty_output, parsemis_output, no_build=False,
-        parsemis_logs=False, pattern_min='50%'):
+def run_parsemis(conf, dotty_output, swap, parsemis_output, no_build=False,
+        parsemis_logs=False, pattern_min='50%', extra=None):
+
+    if extra is None:
+        extra = list()
+
     if not no_build:
         build_parsemis(conf)
+
     cmd = list(conf.parsemis_cmd)
     cmd += [
         '--graphFile='+dotty_output,
+        '--swapFile='+swap,
         '--outputFile='+parsemis_output,
         '--closeGraph=true',
         '--algorithm=gspan',
@@ -110,6 +116,8 @@ def run_parsemis(conf, dotty_output, parsemis_output, no_build=False,
         '--minimumEdgeCount=3',
         '--maximumNodeCount=10',
     ]
+    cmd += extra
+
     print >>sys.stderr, '>', ' '.join(cmd)
     if not parsemis_logs:
         p = subprocess.Popen(cmd,
@@ -140,7 +148,11 @@ def run_graphviz(dot_file):
     subprocess.check_call(cmd)
 
 def patterns(conf, name, subject, output, slicer,
-             no_build=False, jpdg_logs=False, minimum=1, pattern_min='50%'):
+             no_build=False, jpdg_logs=False, minimum=1, pattern_min='50%',
+             parsemis_args=None,):
+
+    if parsemis_args is None:
+        parsemis_args = list()
 
     if not no_build:
         build_jpdg(conf)
@@ -162,13 +174,17 @@ def patterns(conf, name, subject, output, slicer,
             os.unlink(dotty_output)
             continue
         parsemis_output = os.path.join(output, "patterns.%d.dot" % i)
+        swap_file = os.path.join(output, "parsemis_swap")
         run_parsemis(
             conf,
             dotty_output,
+            swap_file,
             parsemis_output,
             no_build=True,
             pattern_min=pattern_min,
+            extra=parsemis_args,
         )
+        os.unlink(swap_file)
         if os.stat(parsemis_output).st_size == 0:
             os.unlink(parsemis_output)
         else:
@@ -179,7 +195,11 @@ def patterns(conf, name, subject, output, slicer,
     return patterns
 
 def partition_patterns(conf, name, subject, output, slicer,
-             no_build=False, jpdg_logs=False, minimum=1, pattern_min='50%'):
+             no_build=False, jpdg_logs=False, minimum=1, pattern_min='50%',
+             parsemis_args=None,):
+
+    if parsemis_args is None:
+        parsemis_args = list()
 
     if not no_build:
         build_jpdg(conf)
@@ -202,13 +222,17 @@ def partition_patterns(conf, name, subject, output, slicer,
 
     print 'dottied'
     parsemis_output = os.path.join(output, "parsemis_patterns.dot")
+    swap_file = os.path.join(output, "parsemis_swap")
     run_parsemis(
         conf,
         dotty_output,
+        swap_file,
         parsemis_output,
         no_build=True,
         pattern_min=pattern_min,
+        extra=parsemis_args,
     )
+    os.unlink(swap_file)
 
     patterns = list()
 
