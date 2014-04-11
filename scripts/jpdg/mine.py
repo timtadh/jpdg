@@ -69,9 +69,11 @@ def build_parsemis(conf):
         os.chdir(cwd)
 
 def build_slicer(conf):
-    subprocess.check_call([
+    cmd = [
         'go', 'install', 'cwru/selab/slice/slicebot',
-    ])
+    ]
+    print >>sys.stderr, '>', ' '.join(cmd)
+    subprocess.check_call(cmd)
 
 def run_jpdg(conf, name, subject, output, no_build=False, jpdg_logs=False):
     if not no_build:
@@ -156,7 +158,7 @@ def patterns(conf, name, subject, output, slicer,
 
     if not no_build:
         build_jpdg(conf)
-        build_parsemis(conf)
+        #build_parsemis(conf)
     jpdg_output = os.path.join(output, 'graph.pdg')
     run_jpdg(conf, name, subject, jpdg_output, True, jpdg_logs)
 
@@ -203,7 +205,7 @@ def partition_patterns(conf, name, subject, output, slicer,
 
     if not no_build:
         build_jpdg(conf)
-        build_parsemis(conf)
+        #build_parsemis(conf)
     jpdg_output = os.path.join(output, 'graph.pdg')
     run_jpdg(conf, name, subject, jpdg_output, True, jpdg_logs)
 

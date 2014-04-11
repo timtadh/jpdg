@@ -135,8 +135,9 @@ public class JPDG {
         } else {
             throw new RuntimeException("uknown label type: " + label_type);
         }
+        System.out.println("LABEL TYPE " + label_type + " " + lm);
         soot.util.Chain<soot.SootClass> classes = S.getApplicationClasses();
-        return PDG_Builder.build(new ExpressionTreeLabels(), classes);
+        return PDG_Builder.build(lm, classes);
     }
 
     public static void writeGraph(Graph g, String path) {

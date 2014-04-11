@@ -395,6 +395,35 @@ func ParsePartition(argv []string) (attr string, filtered_edges map[string]bool,
     return attr, filtered_edges, nil
 }
 
+func ParseProjectedPartition(argv []string) (prefix, attr string, filtered_edges map[string]bool, err error) {
+    _, optargs, err := getopt.GetOpt(
+        argv,
+        "e:a:p:",
+        []string{
+          "edge-filter=",
+          "attr=",
+          "prefix=",
+        },
+    )
+    if err != nil {
+        return "", "", nil, err
+    }
+
+    filtered_edges = make(map[string]bool)
+    for _, oa := range optargs {
+        switch oa.Opt() {
+        case "-e", "--edge-filter":
+            filtered_edges[oa.Arg()] = true
+        case "-a", "--attr":
+            attr = oa.Arg()
+        case "-p", "--prefix":
+            prefix = oa.Arg()
+        }
+    }
+
+    return prefix, attr, filtered_edges, nil
+}
+
 func SerializeGraphs(graphs []*graph.Graph) ([]byte, error) {
     var s []byte
     for _, g := range graphs {
@@ -466,6 +495,30 @@ func (self *LoadedState) Command(cmd string, rest []byte) State {
                 self.HandleError(err)
             } else {
                 s, err := SerializeGraphs(partition)
+                if err != nil {
+                    self.HandleError(err)
+                } else {
+                    self.Writer<-net.EncodeMessage("GRAPHS", s)
+                }
+            }
+        }
+    case "PROJECTED-PARTITION":
+        prefix, attr, filtered_edges, err := ParseProjectedPartition(MakeArgv(string(rest)))
+        if err != nil {
+            self.HandleError(err)
+        } else {
+            partition, err := self.G.Partition(attr, filtered_edges)
+            pparts := make([]*graph.Graph, 0, len(partition))
+            for _, part := range partition {
+                p := part.SelectAndConnect(prefix)
+                if len(p.E) > 0 {
+                    pparts = append(pparts, p)
+                }
+            }
+            if err != nil {
+                self.HandleError(err)
+            } else {
+                s, err := SerializeGraphs(pparts)
                 if err != nil {
                     self.HandleError(err)
                 } else {

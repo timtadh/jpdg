@@ -79,6 +79,7 @@ type Graph struct {
     Index *trie.TST
     V map[int64]*Vertex "vertices"
     E map[Arc]*Edge "edges"
+    closure map[Arc]bool
     kids map[int64][]int64
     parents map[int64][]int64
 }

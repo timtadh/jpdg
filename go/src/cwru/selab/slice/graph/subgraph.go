@@ -31,7 +31,7 @@ package graph
 
 import (
   "fmt"
-  "os"
+  // "os"
   "strings"
 )
 // import "github.com/timtadh/data-structures/types"
@@ -76,12 +76,77 @@ func (self *Graph) Partition(attr string, filtered_edges map[string]bool) (parti
             g.addVertex(v)
         }
     }
-    fmt.Fprintln(os.Stderr, len(parts))
     for _, g := range parts {
         add_edges(self, g, filtered_edges)
         partition = append(partition, g)
     }
     return partition, nil
+}
+
+func (self *Graph) SelectAndConnect(prefix string) (proj *Graph) {
+    proj = newGraph()
+    next := self.Index.PrefixFind([]byte(prefix))
+    for _, obj, next := next(); next != nil; _, obj, next = next() {
+        matches := obj.([]*Vertex)
+        for _, v := range matches {
+            proj.addVertex(v)
+        }
+    }
+    transitively_connect(self, proj)
+    return proj
+}
+
+func (self *Graph) Reaches(u, v int64) bool {
+    if self.closure == nil {
+        self.compute_closure()
+    }
+    return self.closure[Arc{u,v}]
+}
+
+func (self *Graph) compute_closure() {
+    dists := make([][]int, len(self.V))
+    V := make([]int64, len(self.V))
+    self.closure = make(map[Arc]bool)
+    max_int := int((^uint(0)) >> 1)
+    var i int = 0
+    for u := range self.V {
+        V[i] = u
+        i++
+    }
+    for i := range dists {
+        dists[i] = make([]int, len(self.V))
+        for j := range dists[i] {
+            if i != j {
+                u := V[i]
+                v := V[j]
+                if _, has := self.E[Arc{u,v}]; has {
+                    dists[i][j] = 1
+                } else {
+                    dists[i][j] = max_int
+                }
+            } else {
+                dists[i][j] = 0
+            }
+        }
+    }
+    for k := 0; k < len(V); k++ {
+        for i := 0; i < len(V); i++ {
+            for j := 0; j < len(V); j++ {
+                if dists[i][j] > dists[i][k] + dists[k][j] && dists[i][k] + dists[k][j] > 0 {
+                    dists[i][j] = dists[i][k] + dists[k][j]
+                }
+            }
+        }
+    }
+    for i := range dists {
+        for j := range dists {
+            if i != j && dists[i][j] < max_int {
+                u := V[i]
+                v := V[j]
+                self.closure[Arc{u,v}] = true
+            }
+        }
+    }
 }
 
 
@@ -106,6 +171,16 @@ func add_edges(self, g *Graph, filtered_edges map[string]bool) {
                 if !skip {
                     g.addEdge(e)
                 }
+            }
+        }
+    }
+}
+
+func transitively_connect(self, g *Graph) {
+    for u := range g.V {
+        for v := range g.V {
+            if self.Reaches(u, v) {
+                g.addEdge(&Edge{Arc{u,v}, "", make(jsonObject)})
             }
         }
     }

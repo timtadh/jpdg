@@ -169,6 +169,15 @@ class Slicer(object):
         args += ['-a', attr]
         return self.command('PARTITION', ' '.join(args), self.slice_response)
 
+    def projected_partition(self, prefix, attr, filtered_edges=None):
+        args = list()
+        if filtered_edges is not None:
+            for e in filtered_edges:
+                args.append('-e')
+                args.append(e)
+        args += ['-a', attr, '-p', prefix]
+        return self.command('PROJECTED-PARTITION', ' '.join(args), self.slice_response)
+
     def command(self, cmd, data, response):
         with self.slicer_lock:
             msg = cmd + " " + data.encode('base64').replace('\n', '') + '\n'

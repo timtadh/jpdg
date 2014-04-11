@@ -29,6 +29,8 @@ package edu.cwru.jpdg.label;
  *   http://www.gnu.org/licenses/lgpl-2.1.html
  */
 
+import java.util.*;
+
 import soot.toolkits.graph.Block;
 
 import edu.cwru.jpdg.pDG_Builder;
@@ -36,11 +38,17 @@ import edu.cwru.jpdg.pDG_Builder;
 public class InstructionLabels implements LabelMaker {
 
     public String label(pDG_Builder pDG, int uid, Block b) {
-        return b.toString();
+        StringBuilder sb = new StringBuilder();
+        for (Iterator<soot.Unit> it = b.iterator(); it.hasNext(); ) {
+            soot.Unit u = it.next();
+            sb.append(u.toString());
+            sb.append("\n");
+        }
+        return sb.toString();
     }
 
     public String nodeType(Block b) {
         return ExpressionTreeLabels.NodeType(b);
     }
-
 }
+
