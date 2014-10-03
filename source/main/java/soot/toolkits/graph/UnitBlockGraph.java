@@ -42,7 +42,7 @@ import soot.toolkits.graph.BriefUnitGraph;
 public class UnitBlockGraph extends BlockGraph {
 
     public  UnitBlockGraph(Body body) {
-        this(new BriefUnitGraph(body));
+        this(new ExceptionalUnitGraph(body));
     }
 
     public  UnitBlockGraph(UnitGraph unitGraph) {

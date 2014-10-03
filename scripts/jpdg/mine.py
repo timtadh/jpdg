@@ -164,9 +164,12 @@ def patterns(conf, name, subject, output, slicer,
 
     patterns = list()
     slicer.load(jpdg_output)
+    print 'loaded'
     for i, c in enumerate(slicer.candidates('3:call')):
+        print i, c
         if c['count'] < minimum:
             continue
+        print 'slicing'
         slices = slicer.slice(c['label'], filtered_edges=['cfg'])
         memfile = StringIO(slices)
         dotty_output = os.path.join(output, 'slice.%d.dot' % i)
@@ -211,7 +214,7 @@ def partition_patterns(conf, name, subject, output, slicer,
 
     slicer.load(jpdg_output)
     print 'loaded'
-    partition = slicer.partition('method_name', filtered_edges=['cfg'])
+    partition = slicer.partition('method_name', filtered_edges=[])
     print 'parted'
     memfile = StringIO(partition)
     dotty_output = os.path.join(output, 'partition.dot')

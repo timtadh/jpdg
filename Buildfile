@@ -39,9 +39,11 @@ jasmin_libs = [
 ]
 
 soot_libs = [
-  'libs/baksmali-1.4.3-dev.jar',
+  'libs/dexlib2-2.0.3-dev.jar',
   'soot/libs/polyglot.jar',
   'soot/libs/AXMLPrinter2.jar',
+  'org.ow2.asm:asm-debug-all:jar:5.0.3',
+  'com.google.guava:guava:jar:18.0',
   baksmali_2,
 ] + jasmin_libs
 

@@ -142,6 +142,19 @@ class Slicer(object):
         else:
             return json.loads(data)
 
+    def edge(self, u, v):
+        args = [str(u), str(v)]
+        return self.command('EDGE', ' '.join(args), self.edge_response)
+
+    def edge_response(self):
+        cmd, data = self.get_line()
+        if cmd == "ERROR":
+            raise Exception(data)
+        elif cmd != "EDGE":
+            raise Exception, "bad command recieved %s %s" % (cmd, data)
+        else:
+            return json.loads(data)
+
     def sub_graph(self, nodes, filtered_edges=None):
         args = list()
         if filtered_edges is not None:

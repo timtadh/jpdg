@@ -94,7 +94,7 @@ class Configuration(conf.BaseConfig):
             self.jpdg_jar,
             subject['soot_classpath'],
             subject['target'],
-            'expr-tree',
+            'inst',
         ]
         return subject
 

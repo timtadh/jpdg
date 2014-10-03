@@ -34,7 +34,7 @@ import os, sys, time, subprocess
 import csv, json, cgi
 
 
-def dotty(inf, of, html=True):
+def dotty(inf, of, html=True, label='label'):
 
     def string(label):
         if html:
@@ -62,9 +62,9 @@ def dotty(inf, of, html=True):
     def vertex(line):
         if html:
             template = 'n%d [shape=rect, fontname="Courier", label=<<table border="0">%s</table>>];\n'
-            of.write(template % (line['id'], string(line['label'])))
+            of.write(template % (line['id'], string(line[label])))
         else:
-            of.write('n%d [shape=rect, label="%s"];\n' % (line['id'], string(line['label'])))
+            of.write('n%d [shape=rect, label="%s"];\n' % (line['id'], string(line[label])))
     def finalize():
         of.write('\n}\n')
     def start(graph_count):

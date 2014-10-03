@@ -52,6 +52,8 @@ import edu.cwru.jpdg.Javac;
 
 public class test_stmt_labels {
 
+    /*
+
     static soot.SootClass klass;
     static HashMap<Integer,Node> var_ops;
     static TreeBuilder builder;
@@ -88,6 +90,7 @@ public class test_stmt_labels {
     public soot.Value call(List<soot.Unit> insts, int idx) {
         return ((soot.jimple.InvokeStmt)insts.get(idx)).getInvokeExpr();
     }
+
 
     @Test
     public void arith_ops() {
@@ -214,5 +217,6 @@ public class test_stmt_labels {
             is("3:call,0:java.lang.Object.hashCode,0:params,1:return,0:int")
         );
     }
+    */
 }
 
