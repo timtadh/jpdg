@@ -32,26 +32,26 @@ package graph
 import (
   "fmt"
   // "os"
-  "strings"
+  // "strings"
 )
 // import "github.com/timtadh/data-structures/types"
 
-type Direction func(*Graph, *Vertex, map[string]bool) *Graph
+type Direction func(*Graph, *Vertex, map[string]bool, map[string]bool) *Graph
 
-func (self *Graph) Slice(prefix string, dir Direction, filtered_edges map[string]bool) (slices []*Graph) {
+func (self *Graph) Slice(prefix string, dir Direction, filtered_edges, filtered_nodes map[string]bool) (slices []*Graph) {
     next := self.Index.PrefixFind([]byte(prefix))
     for _, obj, next := next(); next != nil; _, obj, next = next() {
         matches := obj.([]*Vertex)
         // fmt.Fprintln(os.Stderr, string(label.(types.ByteSlice)), len(matches))
         for _, match := range matches {
-            graph := dir(self, match, filtered_edges)
+            graph := dir(self, match, filtered_edges, filtered_nodes)
             slices = append(slices, graph)
         }
     }
     return slices
 }
 
-func (self *Graph) SubGraph(nodes []int64, filtered_edges map[string]bool) *Graph {
+func (self *Graph) SubGraph(nodes []int64, filtered_edges, filtered_nodes map[string]bool) *Graph {
     g := newGraph()
     for _, nid := range nodes {
         v := self.V[nid]
@@ -61,7 +61,7 @@ func (self *Graph) SubGraph(nodes []int64, filtered_edges map[string]bool) *Grap
     return g
 }
 
-func (self *Graph) Partition(attr string, filtered_edges map[string]bool) (partition []*Graph, err error) {
+func (self *Graph) Partition(attr string, filtered_edges, filtered_nodes map[string]bool) (partition []*Graph, err error) {
     parts := make(map[string]*Graph)
     for _, v := range self.V {
         if _, has := v.Rest[attr]; !has {
@@ -150,26 +150,28 @@ func (self *Graph) compute_closure() {
 }
 
 
-func Both(self *Graph, start *Vertex, filtered_edges map[string]bool) *Graph {
+func Both(self *Graph, start *Vertex, filtered_edges, filtered_nodes map[string]bool) *Graph {
     g := newGraph()
-    forward(self, g, start, filtered_edges)
-    backward(self, g, start, filtered_edges)
+    forward(self, g, start, filtered_edges, filtered_nodes)
+    backward(self, g, start, filtered_edges, filtered_nodes)
     return g
 }
 
-func Backward(self *Graph, start *Vertex, filtered_edges map[string]bool) *Graph {
+func Backward(self *Graph, start *Vertex, filtered_edges, filtered_nodes map[string]bool) *Graph {
     g := newGraph()
-    backward(self, g, start, filtered_edges)
+    backward(self, g, start, filtered_edges, filtered_nodes)
     return g
 }
 
 func add_edges(self, g *Graph, filtered_edges map[string]bool) {
     for u := range g.V {
         for v := range g.V {
-            if e, has := self.E[Arc{u,v}]; has {
-                _, skip := filtered_edges[e.Label]
-                if !skip {
-                    g.addEdge(e)
+            if edges, has := self.E[Arc{u,v}]; has {
+                for _, e := range edges {
+                    _, skip := filtered_edges[e.Label]
+                    if !skip {
+                        g.addEdge(e)
+                    }
                 }
             }
         }
@@ -186,18 +188,19 @@ func transitively_connect(self, g *Graph) {
     }
 }
 
-func backward(self, g *Graph, start *Vertex, filtered_edges map[string]bool) {
+func backward(self, g *Graph, start *Vertex, filtered_edges, filtered_nodes map[string]bool) {
     seen := make(map[int64]bool)
     var visit func(*Vertex)
     visit = func(n *Vertex) {
         seen[n.Id] = true
-        if strings.HasSuffix(n.Label, "-entry") {
+        /*if strings.HasSuffix(n.Label, "-entry") {
             return
-        }
+        }*/
         g.addVertex(n)
         for _, parent := range self.parents[n.Id] {
-            _, skip := filtered_edges[self.E[Arc{parent,n.Id}].Label]
-            if !seen[parent] && !skip {
+            _, skip_node := filtered_nodes[self.V[parent].Label]
+            skip_edge := has_only_filtered_edges(self, Arc{parent,n.Id}, filtered_edges)
+            if !seen[parent] && !(skip_node || skip_edge) {
                 visit(self.V[parent])
             }
         }
@@ -206,24 +209,25 @@ func backward(self, g *Graph, start *Vertex, filtered_edges map[string]bool) {
     add_edges(self, g, filtered_edges)
 }
 
-func Forward(self *Graph, start *Vertex, filtered_edges map[string]bool) *Graph {
+func Forward(self *Graph, start *Vertex, filtered_edges, filtered_nodes map[string]bool) *Graph {
     g := newGraph()
-    forward(self, g, start, filtered_edges)
+    forward(self, g, start, filtered_edges, filtered_nodes)
     return g
 }
 
-func forward(self, g *Graph, start *Vertex, filtered_edges map[string]bool) {
+func forward(self, g *Graph, start *Vertex, filtered_edges, filtered_nodes map[string]bool) {
     seen := make(map[int64]bool)
     var visit func(*Vertex)
     visit = func(n *Vertex) {
         seen[n.Id] = true
-        if strings.HasSuffix(n.Label, "-entry") {
+        /*if strings.HasSuffix(n.Label, "-entry") {
             return
-        }
+        }*/
         g.addVertex(n)
         for _, kid := range self.kids[n.Id] {
-            _, skip := filtered_edges[self.E[Arc{n.Id,kid}].Label]
-            if !seen[kid] && !skip {
+            _, skip_node := filtered_nodes[self.V[kid].Label]
+            skip_edge := has_only_filtered_edges(self, Arc{n.Id,kid}, filtered_edges)
+            if !seen[kid] && !skip_node && !skip_edge {
                 visit(self.V[kid])
             }
         }
@@ -231,4 +235,14 @@ func forward(self, g *Graph, start *Vertex, filtered_edges map[string]bool) {
     visit(start)
     add_edges(self, g, filtered_edges)
 }
+
+func has_only_filtered_edges(self *Graph, arc Arc, filtered_edges map[string]bool) bool {
+    for _, e := range self.E[arc] {
+        if _, skip := filtered_edges[e.Label]; !skip {
+            return false
+        }
+    }
+    return true
+}
+
 

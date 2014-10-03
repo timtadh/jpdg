@@ -306,18 +306,19 @@ func MakeArgv(line string) (argv []string) {
     return argv
 }
 
-func ParseSlice(argv []string) (prefix string, direction graph.Direction, filtered_edges map[string]bool, err error) {
+func ParseSlice(argv []string) (prefix string, direction graph.Direction, filtered_edges, filtered_nodes map[string]bool, err error) {
     _, optargs, err := getopt.GetOpt(
         argv,
-        "p:d:e:",
+        "p:d:e:n:",
         []string{
           "prefix=",
           "direction=",
           "edge-filter=",
+          "node-filter=",
         },
     )
     if err != nil {
-        return "", nil, nil, err
+        return "", nil, nil, nil, err
     }
     prefix = ""
     direction = graph.Backward
@@ -329,24 +330,27 @@ func ParseSlice(argv []string) (prefix string, direction graph.Direction, filter
             direction = ParseDirection(oa.Arg())
         case "-e", "--edge-filter":
             filtered_edges[oa.Arg()] = true
+        case "-n", "--node-filter":
+            filtered_nodes[oa.Arg()] = true
         }
     }
     if prefix == "" {
-        return "", nil, nil, fmt.Errorf("You must supply a prefix")
+        return "", nil, nil, nil, fmt.Errorf("You must supply a prefix")
     }
-    return prefix, direction, filtered_edges, nil
+    return prefix, direction, filtered_edges, filtered_nodes, nil
 }
 
-func ParseSubGraph(argv []string) (nodes []int64, filtered_edges map[string]bool, err error) {
+func ParseSubGraph(argv []string) (nodes []int64, filtered_edges, filtered_nodes map[string]bool, err error) {
     args, optargs, err := getopt.GetOpt(
         argv,
-        "e:",
+        "e:n:",
         []string{
           "edge-filter=",
+          "node-filter=",
         },
     )
     if err != nil {
-        return nil, nil, err
+        return nil, nil, nil, err
     }
 
     filtered_edges = make(map[string]bool)
@@ -354,66 +358,91 @@ func ParseSubGraph(argv []string) (nodes []int64, filtered_edges map[string]bool
         switch oa.Opt() {
         case "-e", "--edge-filter":
             filtered_edges[oa.Arg()] = true
+        case "-n", "--node-filter":
+            filtered_nodes[oa.Arg()] = true
         }
     }
 
     for _, s := range args {
         i, err := strconv.Atoi(s)
         if err != nil {
-            return nil, nil, err
+            return nil, nil, nil, err
         } else {
             nodes = append(nodes, int64(i))
         }
     }
 
-    return nodes, filtered_edges, nil
+    return nodes, filtered_edges, filtered_nodes, nil
 }
 
-func ParsePartition(argv []string) (attr string, filtered_edges map[string]bool, err error) {
+func ParsePartition(argv []string) (attr string, filtered_edges, filtered_nodes map[string]bool, err error) {
     _, optargs, err := getopt.GetOpt(
         argv,
-        "e:a:",
+        "e:n:a:",
         []string{
           "edge-filter=",
+          "node-filter=",
           "attr=",
         },
     )
     if err != nil {
-        return "", nil, err
+        return "", nil, nil, err
     }
 
     filtered_edges = make(map[string]bool)
+    filtered_nodes = make(map[string]bool)
     for _, oa := range optargs {
         switch oa.Opt() {
         case "-e", "--edge-filter":
             filtered_edges[oa.Arg()] = true
+        case "-n", "--nodes-filter":
+            filtered_nodes[oa.Arg()] = true
         case "-a", "--attr":
             attr = oa.Arg()
         }
     }
 
-    return attr, filtered_edges, nil
+    return attr, filtered_edges, filtered_nodes, nil
 }
 
-func ParseProjectedPartition(argv []string) (prefix, attr string, filtered_edges map[string]bool, err error) {
+func ParseEdge(argv []string) (u, v int, err error) {
+    if len(argv) != 2 {
+        return 0, 0, fmt.Errorf("incorrect number of args")
+    }
+    u, err = strconv.Atoi(argv[0])
+    if err != nil {
+        return 0, 0, err
+    }
+    v, err = strconv.Atoi(argv[1])
+    if err != nil {
+        return 0, 0, err
+    }
+    return u, v, nil
+}
+
+func ParseProjectedPartition(argv []string) (prefix, attr string, filtered_edges, filtered_nodes map[string]bool, err error) {
     _, optargs, err := getopt.GetOpt(
         argv,
-        "e:a:p:",
+        "e:n:a:p:",
         []string{
           "edge-filter=",
+          "node-filter=",
           "attr=",
           "prefix=",
         },
     )
     if err != nil {
-        return "", "", nil, err
+        return "", "", nil, nil, err
     }
 
     filtered_edges = make(map[string]bool)
+    filtered_nodes = make(map[string]bool)
     for _, oa := range optargs {
         switch oa.Opt() {
         case "-e", "--edge-filter":
             filtered_edges[oa.Arg()] = true
+        case "-n", "--node-filter":
+            filtered_nodes[oa.Arg()] = true
         case "-a", "--attr":
             attr = oa.Arg()
         case "-p", "--prefix":
@@ -421,7 +450,7 @@ func ParseProjectedPartition(argv []string) (prefix, attr string, filtered_edges
         }
     }
 
-    return prefix, attr, filtered_edges, nil
+    return prefix, attr, filtered_edges, filtered_nodes, nil
 }
 
 func SerializeGraphs(graphs []*graph.Graph) ([]byte, error) {
@@ -448,11 +477,11 @@ func (self *LoadedState) Command(cmd string, rest []byte) State {
             ),
         )
     case "SLICE":
-        prefix, dir, fe, err := ParseSlice(MakeArgv(string(rest)))
+        prefix, dir, fe, fn, err := ParseSlice(MakeArgv(string(rest)))
         if err != nil {
             self.HandleError(err)
         } else {
-            slices := self.G.Slice(prefix, dir, fe)
+            slices := self.G.Slice(prefix, dir, fe, fn)
             s, err := SerializeGraphs(slices)
             if err != nil {
                 self.HandleError(err)
@@ -465,20 +494,43 @@ func (self *LoadedState) Command(cmd string, rest []byte) State {
         if err != nil {
             self.HandleError(err)
         } else {
-            node := self.G.V[int64(i)]
-            bytes, err := json.Marshal(node.Rest)
-            if err != nil {
-                self.HandleError(err)
+            if i < 0 || i >= len(self.G.V) {
+                self.HandleError(fmt.Errorf("No Node"))
+
             } else {
-                self.Writer<-net.EncodeMessage("NODE", bytes)
+                node := self.G.V[int64(i)]
+                bytes, err := json.Marshal(node.Rest)
+                if err != nil {
+                    self.HandleError(err)
+                } else {
+                    self.Writer<-net.EncodeMessage("NODE", bytes)
+                }
             }
         }
-    case "SUBGRAPH":
-        nodes, filtered_edges, err := ParseSubGraph(MakeArgv(string(rest)))
+    case "EDGE":
+        u, v, err := ParseEdge(MakeArgv(string(rest)))
         if err != nil {
             self.HandleError(err)
         } else {
-            g, err := self.G.SubGraph(nodes, filtered_edges).Serialize()
+            if edges, has := self.G.E[graph.Arc{int64(u),int64(v)}]; has {
+                for _, e := range edges {
+                    bytes, err := json.Marshal(e.Rest)
+                    if err != nil {
+                        self.HandleError(err)
+                    } else {
+                        self.Writer<-net.EncodeMessage("EDGE", bytes)
+                    }
+                }
+            } else {
+                self.HandleError(fmt.Errorf("No Edge"))
+            }
+        }
+    case "SUBGRAPH":
+        nodes, filtered_edges, filtered_nodes, err := ParseSubGraph(MakeArgv(string(rest)))
+        if err != nil {
+            self.HandleError(err)
+        } else {
+            g, err := self.G.SubGraph(nodes, filtered_edges, filtered_nodes).Serialize()
             if err != nil {
                 self.HandleError(err)
             } else {
@@ -486,11 +538,11 @@ func (self *LoadedState) Command(cmd string, rest []byte) State {
             }
         }
     case "PARTITION":
-        attr, filtered_edges, err := ParsePartition(MakeArgv(string(rest)))
+        attr, filtered_edges, filtered_nodes, err := ParsePartition(MakeArgv(string(rest)))
         if err != nil {
             self.HandleError(err)
         } else {
-            partition, err := self.G.Partition(attr, filtered_edges)
+            partition, err := self.G.Partition(attr, filtered_edges, filtered_nodes)
             if err != nil {
                 self.HandleError(err)
             } else {
@@ -503,11 +555,11 @@ func (self *LoadedState) Command(cmd string, rest []byte) State {
             }
         }
     case "PROJECTED-PARTITION":
-        prefix, attr, filtered_edges, err := ParseProjectedPartition(MakeArgv(string(rest)))
+        prefix, attr, filtered_edges, filtered_nodes, err := ParseProjectedPartition(MakeArgv(string(rest)))
         if err != nil {
             self.HandleError(err)
         } else {
-            partition, err := self.G.Partition(attr, filtered_edges)
+            partition, err := self.G.Partition(attr, filtered_edges, filtered_nodes)
             pparts := make([]*graph.Graph, 0, len(partition))
             for _, part := range partition {
                 p := part.SelectAndConnect(prefix)

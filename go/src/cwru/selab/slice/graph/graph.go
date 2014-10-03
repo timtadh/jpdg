@@ -78,7 +78,7 @@ type Edge struct {
 type Graph struct {
     Index *trie.TST
     V map[int64]*Vertex "vertices"
-    E map[Arc]*Edge "edges"
+    E map[Arc][]*Edge "edges"
     closure map[Arc]bool
     kids map[int64][]int64
     parents map[int64][]int64
@@ -155,7 +155,7 @@ func newGraph() *Graph {
     return &Graph{
         Index: new(trie.TST),
         V: make(map[int64]*Vertex),
-        E: make(map[Arc]*Edge),
+        E: make(map[Arc][]*Edge),
         kids: make(map[int64][]int64),
         parents: make(map[int64][]int64),
     }
@@ -225,7 +225,7 @@ func (self *Graph) addVertex(v *Vertex) {
 }
 
 func (self *Graph) addEdge(e *Edge) {
-    self.E[e.Arc] = e
+    self.E[e.Arc] = append(self.E[e.Arc], e)
     self.kids[e.Src] = append(self.kids[e.Src], e.Targ)
     self.parents[e.Targ] = append(self.parents[e.Targ], e.Src)
 }
@@ -241,12 +241,14 @@ func (self *Graph) Serialize() ([]byte, error) {
             lines = append(lines, []byte("vertex\t"), b, []byte("\n"))
         }
     }
-    for _,e := range self.E {
-        b, err := e.Serialize()
-        if err != nil {
-            errors = append(errors, err)
-        } else {
-            lines = append(lines, []byte("edge\t"), b, []byte("\n"))
+    for _, edges := range self.E {
+        for _, e := range edges {
+            b, err := e.Serialize()
+            if err != nil {
+                errors = append(errors, err)
+            } else {
+                lines = append(lines, []byte("edge\t"), b, []byte("\n"))
+            }
         }
     }
     final := bytes.Join(lines, nil)
@@ -265,9 +267,10 @@ func LoadVertex(data []byte) (vertex *Vertex, err error) {
     if err != nil {
         return nil, err
     }
+    label := obj["label"].(string)
     vertex = &Vertex{
         Id: id,
-        Label: obj["label"].(string),
+        Label: strings.TrimSpace(label),
         Rest: make(jsonObject),
     }
     for k,v := range obj {
@@ -315,9 +318,7 @@ func LoadEdge(data []byte) (edge *Edge, err error) {
         Rest: make(jsonObject),
     }
     for k,v := range obj {
-        if k != "src" && k != "targ" && k != "label" {
-            edge.Rest[k] = v
-        }
+        edge.Rest[k] = v
     }
     return edge, nil
 }

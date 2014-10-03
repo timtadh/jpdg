@@ -182,7 +182,7 @@ func main() {
 
     args, optargs, err := getopt.GetOpt(
         os.Args[1:],
-        "hsp:c:d:e:",
+        "hsp:c:d:e:n:",
         []string{
           "help",
           "stdin",
@@ -190,6 +190,7 @@ func main() {
           "candidates=",
           "direction=",
           "edge-filter=",
+          "node-filter=",
         },
     )
     if err != nil {
@@ -203,6 +204,7 @@ func main() {
     prefix := ""
     direction := graph.Backward
     filtered_edges := make(map[string]bool)
+    filtered_nodes := make(map[string]bool)
     for _, oa := range optargs {
         switch oa.Opt() {
         case "-h", "--help": Usage(0)
@@ -215,6 +217,8 @@ func main() {
             direction = ParseDirection(oa.Arg())
         case "-e", "--edge-filter":
             filtered_edges[oa.Arg()] = true
+        case "-n", "--node-filter":
+            filtered_nodes[oa.Arg()] = true
         }
     }
     if prefix == "" && !candidates {
@@ -249,7 +253,7 @@ func main() {
             if len(matches) >= minimum {
                 fmt.Fprintln(os.Stderr, label, len(matches))
                 for _, match := range matches {
-                    graph := direction(G, match, filtered_edges)
+                    graph := direction(G, match, filtered_edges, filtered_nodes)
                     if len(graph.V) > 1 {
                         slices = append(slices, graph)
                     }
@@ -258,7 +262,7 @@ func main() {
         }
         fmt.Fprintln(os.Stderr)
     } else {
-        slices = G.Slice(prefix, direction, filtered_edges)
+        slices = G.Slice(prefix, direction, filtered_edges, filtered_nodes)
     }
     for _, slice := range slices {
         g, err := slice.Serialize()
