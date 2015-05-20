@@ -39,7 +39,9 @@ jasmin_libs = [
 ]
 
 soot_libs = [
-  'libs/dexlib2-2.0.3-dev.jar',
+  'libs/dexlib2-2.0.5-dev.jar',
+  'libs/util-2.0.5-dev.jar',
+  'libs/dexlib-1.4.3-dev.jar',
   'soot/libs/polyglot.jar',
   'soot/libs/AXMLPrinter2.jar',
   'org.ow2.asm:asm-debug-all:jar:5.0.3',
@@ -63,6 +65,7 @@ jpdg_libs = [
   'org.apache.commons:commons-io:jar:1.3.2',
   'commons-codec:commons-codec:jar:1.4',
   'commons-lang:commons-lang:jar:2.6',
+  'commons-cli:commons-cli:jar:1.2',
 ]
 
 task :jas do
