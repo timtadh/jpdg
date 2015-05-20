@@ -31,8 +31,10 @@ package test.pDG;
 
 public class CFG {
 
-    public static int fib(int x) {
-        int prev = 0;
+    int y = 0;
+
+    public int fib(int x) {
+        int prev = y;
         int cur = 1;
         if (x == 0) {
             cur = 0;
@@ -47,10 +49,11 @@ public class CFG {
     }
 
     public static int fib_caller(int x) {
+        CFG cfg = new CFG();
         int r = 0;
-        r += fib(x);
+        r += cfg.fib(x);
         r += 1;
-        r += fib(x);
+        r += cfg.fib(x);
         return r;
     }
 }

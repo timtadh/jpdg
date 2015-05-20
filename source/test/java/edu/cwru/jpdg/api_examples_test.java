@@ -52,7 +52,7 @@ public class api_examples_test {
 
     soot.SootClass cfg_klass = Javac.classes("test.pDG.Buffer").get("test.pDG.Buffer");
 
-    public pDG_Builder get_builder(String method) {
+    public pDG_Builder get_builder(String method) throws pDG_Builder.Error {
         pDG_Builder pDG = pDG_Builder.test_instance();
         pDG.g = new Graph();
         pDG.lm = new ExpressionTreeLabels();
@@ -66,28 +66,28 @@ public class api_examples_test {
     }
 
     @Test
-    public void dotty_main_CFG() {
+    public void dotty_main_CFG() throws pDG_Builder.Error {
         pDG_Builder pDG = get_builder("main");
         pDG.build_cfg();
         Dotty.graphviz("test.pDG.Buffer.main.cfg", Dotty.dotty(pDG.g.Serialize()));
     }
 
     @Test
-    public void dotty_read_CFG() {
+    public void dotty_read_CFG() throws pDG_Builder.Error {
         pDG_Builder pDG = get_builder("read");
         pDG.build_cfg();
         Dotty.graphviz("test.pDG.Buffer.read.cfg", Dotty.dotty(pDG.g.Serialize()));
     }
 
     @Test
-    public void dotty_put_CFG() {
+    public void dotty_put_CFG() throws pDG_Builder.Error {
         pDG_Builder pDG = get_builder("put");
         pDG.build_cfg();
         Dotty.graphviz("test.pDG.Buffer.put.cfg", Dotty.dotty(pDG.g.Serialize()));
     }
 
     @Test
-    public void dotty_putAfter_CFG() {
+    public void dotty_putAfter_CFG() throws pDG_Builder.Error {
         pDG_Builder pDG = get_builder("putAfter");
         pDG.build_cfg();
         Dotty.graphviz("test.pDG.Buffer.putAfter.cfg", Dotty.dotty(pDG.g.Serialize()));

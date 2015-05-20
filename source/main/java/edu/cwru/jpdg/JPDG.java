@@ -148,7 +148,6 @@ public class JPDG {
     }
 
     public static void configure_and_run_soot(soot.Scene S, Options O, String cp, List<String> dirs, List<String> excluded) {
-        System.out.println("classpath " + cp);
         O.set_soot_classpath(cp);
         O.set_process_dir(dirs);
         // O.set_exclude(excluded);

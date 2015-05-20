@@ -29,21 +29,78 @@ package edu.cwru.jpdg.label;
  *   http://www.gnu.org/licenses/lgpl-2.1.html
  */
 
-
-import java.util.*;
+import java.util.Iterator;
 
 import soot.toolkits.graph.Block;
+import soot.jimple.internal.*;
 
 import edu.cwru.jpdg.pDG_Builder;
 
 public class OpLabels implements LabelMaker {
 
     public String label(pDG_Builder pDG, int uid, Block b) {
-        throw new RuntimeException("not implemented");
+        StringBuilder sb = new StringBuilder();
+        for (Iterator<soot.Unit> it = b.iterator(); it.hasNext(); ) {
+            soot.Unit u = it.next();
+            sb.append(label(u));
+            if (it.hasNext()) {
+                sb.append(":");
+            }
+        }
+        return sb.toString();
     }
 
     public String nodeType(Block b) {
         return ExpressionTreeLabels.NodeType(b);
+    }
+
+    public String label(soot.Unit u) {
+        if (u instanceof AbstractDefinitionStmt) {
+            AbstractDefinitionStmt s = (AbstractDefinitionStmt)u;
+            return label(s.getLeftOp(), s.getRightOp());
+        } else if (u instanceof JIfStmt) {
+            JIfStmt s = (JIfStmt)u;
+            return label(s.getCondition());
+        } else if (u instanceof JGotoStmt) {
+            JGotoStmt s = (JGotoStmt)u;
+            return "goto";
+        } else if (u instanceof JReturnStmt) {
+            JReturnStmt s = (JReturnStmt)u;
+            return "return";
+        }
+        throw new RuntimeException(String.format("Unexpected unit %s [%s]", u, u.getClass()));
+    }
+
+    public String label(soot.Value left, soot.Value right) {
+        String left_label = "";
+        if (!(left instanceof JimpleLocal)) {
+            throw new RuntimeException(String.format("Unexpected left %s [%s]", left, left.getClass()));
+        }
+        if ((left instanceof JimpleLocal) && (right instanceof JimpleLocal)) {
+            return "=";
+        }
+        String right_label = label(right);
+        return String.format("%s%s", left_label, right_label);
+    }
+
+    public String label(soot.Value value) {
+        if (value instanceof soot.jimple.ThisRef) {
+            return String.format("this");
+        } else if (value instanceof soot.jimple.ParameterRef) {
+            soot.jimple.ParameterRef pr = (soot.jimple.ParameterRef)value;
+            return String.format("param(%d)", pr.getIndex());
+        } else if (value instanceof JInstanceFieldRef) {
+            JInstanceFieldRef fr = (JInstanceFieldRef)value;
+            soot.SootField f = fr.getField();
+            return String.format("%s.%s", f.getDeclaringClass(), f.getName());
+        } else if (value instanceof soot.jimple.Constant) {
+            soot.jimple.Constant c = (soot.jimple.Constant)value;
+            return String.format("%s", c);
+        } else if (value instanceof soot.jimple.BinopExpr) {
+            soot.jimple.BinopExpr binop = (soot.jimple.BinopExpr)value;
+            return String.format("%s", binop.getSymbol().trim());
+        }
+        throw new RuntimeException(String.format("Unexpected value %s [%s]", value, value.getClass()));
     }
 }
 

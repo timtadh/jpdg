@@ -61,6 +61,22 @@ import edu.cwru.jpdg.label.LabelMaker;
 
 public class pDG_Builder {
 
+    public static class Error extends Exception {
+        public Error(String msg) {
+            super(msg);
+        }
+    }
+
+    public static class ParameterNotFound extends Error {
+        soot.Unit unit;
+        soot.Value param;
+        public ParameterNotFound(soot.Unit unit, soot.Value param) {
+            super(String.format("Could not find %s in %s", param, unit));
+            this.unit = unit;
+            this.param = param;
+        }
+    }
+
     LabelMaker lm;
     Graph g;
     soot.SootClass klass;
@@ -76,7 +92,7 @@ public class pDG_Builder {
     public ddg_Builder ddg_builder;
 
 
-    public static void build(LabelMaker lm, Graph g, soot.SootClass c, soot.SootMethod m, soot.Body body, BlockGraph cfg) {
+    public static void build(LabelMaker lm, Graph g, soot.SootClass c, soot.SootMethod m, soot.Body body, BlockGraph cfg) throws Error {
         pDG_Builder self = new pDG_Builder(lm, g, c, m, body, cfg);
         self.build_pDG();
     }
@@ -87,7 +103,7 @@ public class pDG_Builder {
 
     private pDG_Builder() {}
 
-    private pDG_Builder(LabelMaker lm, Graph g, soot.SootClass c, soot.SootMethod m, soot.Body body, BlockGraph cfg) {
+    private pDG_Builder(LabelMaker lm, Graph g, soot.SootClass c, soot.SootMethod m, soot.Body body, BlockGraph cfg) throws Error {
         this.lm = lm;
         this.g = g;
         this.klass = c;
@@ -97,15 +113,15 @@ public class pDG_Builder {
         this.init();
     }
 
-    void init() {
+    void init() throws Error {
         this.assign_uids();
         this.map_units_to_blks();
         this.ddg_builder = new ddg_Builder();
         this.assign_labels();
     }
 
-    void build_pDG() {
-        this.build_cfg();
+    void build_pDG() throws Error {
+        // this.build_cfg();
         this.build_cdg();
         this.build_ddg();
     }
@@ -219,7 +235,7 @@ public class pDG_Builder {
         }
     }
 
-    void build_ddg() {
+    void build_ddg() throws Error {
         ddg_builder.build();
     }
 
@@ -231,7 +247,7 @@ public class pDG_Builder {
         public SimpleLocalUses slu = new SimpleLocalUses(bug, sld);
         public HashMap<Integer,HashMap<Integer,List<DefinitionStmt>>> defining_stmts = new HashMap<Integer,HashMap<Integer,List<DefinitionStmt>>>();
 
-        ddg_Builder() {
+        ddg_Builder() throws Error {
             for (Iterator<Block> i = cfg.iterator(); i.hasNext(); ) {
                 Block b = i.next();
                 int uid_b = block_uids.get(b.getIndexInMethod());
@@ -268,7 +284,7 @@ public class pDG_Builder {
             return def_stmts;
         }
 
-        void build() {
+        void build() throws Error {
             System.err.println("building ddg for " + klass.getPackageName() + " " + klass.getName() + " " + method.getName());
 
             // For each block, find the blocks which are data dependent.
@@ -278,7 +294,7 @@ public class pDG_Builder {
             }
         }
 
-        void find_data_dependencies(Block b) {
+        void find_data_dependencies(Block b) throws Error {
             int uid_b = block_uids.get(b.getIndexInMethod());
             HashMap<Integer,List<DefinitionStmt>> def_stmts = defining_stmts.get(uid_b);
 
@@ -294,15 +310,29 @@ public class pDG_Builder {
                     for (UnitValueBoxPair u : uses) {
                         Block ub = unit_to_blk.get(u.unit);
                         int uid_ub = block_uids.get(ub.getIndexInMethod());
+                        int param = get_param_number(u.unit, value);
+                        String label = String.format("ddg:%s:%d", value.getType(), param);
                         // In the future we may want to consider allowing
                         // this if the block is in a loop and the dependency
                         // is loop carried.
                         if (uid_b != uid_ub) {
-                            g.addEdge(uid_b, uid_ub, "ddg:"+value.getType().toString());
+                            g.addEdge(uid_b, uid_ub, label);
                         }
                     }
                 }
             }
+        }
+
+        int get_param_number(soot.Unit u, soot.Local value) throws Error {
+            int i = 0;
+            for (soot.ValueBox vb : u.getUseBoxes()) {
+                soot.Value v = vb.getValue();
+                if (vb.getValue().equivTo(value)) {
+                    return i;
+                }
+                i++;
+            }
+            throw new ParameterNotFound(u, value);
         }
     }
 }
