@@ -46,21 +46,53 @@ public class PDG_Builder {
     LabelMaker lm;
     Graph g = new Graph();
     Chain<soot.SootClass> classes;
+    List<String> excluded;
 
-    public static Graph build(LabelMaker lm, Chain<soot.SootClass> classes) {
-        PDG_Builder self = new PDG_Builder(lm, classes);
+    public static Graph build(LabelMaker lm, Chain<soot.SootClass> classes, List<String> excluded) {
+        PDG_Builder self = new PDG_Builder(lm, classes, excluded);
         self.build_PDG();
         return self.g;
     }
 
-    private PDG_Builder(LabelMaker lm, Chain<soot.SootClass> classes) {
+    private PDG_Builder(LabelMaker lm, Chain<soot.SootClass> classes, List<String> excluded) {
         this.lm = lm;
         this.classes = classes;
+        this.excluded = excluded;
     }
 
     void build_PDG() {
+        System.out.println(classes);
         for (soot.SootClass c : classes) {
-            process_class(c);
+            String pkg_name = c.getPackageName();
+            String cls_name = c.getName();
+            boolean use = true;
+            for (String exclude : excluded) {
+                if (exclude.startsWith("*") && exclude.endsWith("*")) {
+                    exclude = exclude.substring(1, exclude.length()-1);
+                    if (pkg_name.contains(exclude) || cls_name.contains(exclude)) {
+                        use = false;
+                        break;
+                    }
+                } else if (exclude.startsWith("*")) {
+                    exclude = exclude.substring(1);
+                    if (pkg_name.endsWith(exclude) || cls_name.contains(exclude)) {
+                        use = false;
+                        break;
+                    }
+                } else {
+                    if (pkg_name.startsWith(exclude)) {
+                        use = false;
+                        break;
+                    }
+                }
+            }
+            if (use) {
+                try {
+                    process_class(c);
+                } catch (Exception e) {
+                    System.err.println(e);
+                }
+            }
         }
     }
 

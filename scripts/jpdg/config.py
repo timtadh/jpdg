@@ -49,6 +49,7 @@ schema = {
             'classpath': 'shell_str',
             'lib_dirs': [ 'shell_str' ],
             'class_dirs': [ 'shell_str' ],
+            'exclude_pkgs': [ 'shell_str' ],
             'target': 'shell_str',
         },
     }
@@ -82,6 +83,7 @@ class Configuration(conf.BaseConfig):
         lib_jars = list()
         for lib_dir in subject['lib_dirs']:
             lib_jars += glob.glob(os.path.join(lib_dir, '*.jar'))
+            lib_jars += glob.glob(os.path.join(lib_dir, '*.aar'))
         subject['lib_jars'] = lib_jars
         subject['soot_classpath'] = ':'.join((
             ':'.join(subject['class_dirs']),
@@ -92,10 +94,12 @@ class Configuration(conf.BaseConfig):
             'java',
             '-jar',
             self.jpdg_jar,
-            subject['soot_classpath'],
-            subject['target'],
-            'inst',
+            '-c', subject['soot_classpath'],
+            '-b', subject['target'],
+            '-l', 'expr-tree',
         ]
+        for ex_dir in subject['exclude_pkgs']:
+            subject['jpdg_cmd'] += ['-e', ex_dir]
         return subject
 
     @property

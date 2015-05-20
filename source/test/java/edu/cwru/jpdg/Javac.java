@@ -205,7 +205,7 @@ public class Javac {
         List<String> dirs = new ArrayList<String>();
         dirs.add(base_dir);
 
-        soot.Scene S = edu.cwru.jpdg.JPDG.runSoot(cp, dirs);
+        soot.Scene S = edu.cwru.jpdg.JPDG.runSoot(cp, dirs, new ArrayList<String>());
         for (soot.SootClass klass : S.getApplicationClasses()) {
             System.out.println(klass);
             map.put(klass.getName(), klass);

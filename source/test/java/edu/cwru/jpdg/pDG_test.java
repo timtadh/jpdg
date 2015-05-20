@@ -114,14 +114,14 @@ public class pDG_test {
         pDG.build_ddg();
         Dotty.graphviz("test.pDG.CFG.fib.ddg", Dotty.dotty(pDG.g.Serialize()));
 
-        assertThat(pDG.g.hasEdge(1, 5, "ddg"), is(true));
-        assertThat(pDG.g.hasEdge(1, 4, "ddg"), is(true));
-        assertThat(pDG.g.hasEdge(1, 6, "ddg"), is(true));
-        assertThat(pDG.g.hasEdge(2, 6, "ddg"), is(true));
-        assertThat(pDG.g.hasEdge(3, 4, "ddg"), is(true));
-        assertThat(pDG.g.hasEdge(3, 5, "ddg"), is(true));
-        assertThat(pDG.g.hasEdge(5, 4, "ddg"), is(true));
-        assertThat(pDG.g.hasEdge(5, 6, "ddg"), is(true));
+        assertThat(pDG.g.hasEdge(1, 5, "ddg:int"), is(true));
+        assertThat(pDG.g.hasEdge(1, 4, "ddg:int"), is(true));
+        assertThat(pDG.g.hasEdge(1, 6, "ddg:int"), is(true));
+        assertThat(pDG.g.hasEdge(2, 6, "ddg:int"), is(true));
+        assertThat(pDG.g.hasEdge(3, 4, "ddg:int"), is(true));
+        assertThat(pDG.g.hasEdge(3, 5, "ddg:int"), is(true));
+        assertThat(pDG.g.hasEdge(5, 4, "ddg:int"), is(true));
+        assertThat(pDG.g.hasEdge(5, 6, "ddg:int"), is(true));
     }
 
     @Test

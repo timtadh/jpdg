@@ -33,6 +33,16 @@ import java.util.*;
 import java.io.*;
 import java.nio.charset.Charset;
 
+
+import org.apache.commons.cli.CommandLine;
+import org.apache.commons.cli.CommandLineParser;
+import org.apache.commons.cli.GnuParser;
+import org.apache.commons.cli.HelpFormatter;
+import org.apache.commons.cli.MissingOptionException;
+import org.apache.commons.cli.Option;
+import org.apache.commons.cli.ParseException;
+import org.apache.commons.cli.UnrecognizedOptionException;
+
 import soot.options.Options;
 
 import soot.jimple.toolkits.callgraph.CHATransformer;
@@ -65,29 +75,71 @@ import edu.cwru.jpdg.label.InstructionLabels;
 
 public class JPDG {
 
-    public static void main(String[] args) {
-        if (args.length != 4) {
-            System.out.println("Must supply classpath, base-dir, label-type, output-file");
-            System.out.println("Label Types are: inst, expr-tree,");
+    public static void main(String[] argv) {
+        final Option helpOpt = new Option("h", "help", false, "print this message");
+        final Option outputOpt = new Option("o", "output", true, "output file location");
+        final Option baseOpt = new Option("b", "base-dir", true, "base directory to analyze");
+        final Option excludeOpt = new Option("e", "exclude", true, "exclude these directories");
+        final Option classOpt = new Option("c", "classpath", true, "classpath for soot");
+        final Option labelOpt = new Option("l", "label-type", true, "label type, valid choices are: expr-tree, inst");
+        final org.apache.commons.cli.Options options = new org.apache.commons.cli.Options();
+
+        options.addOption(helpOpt);
+        options.addOption(outputOpt);
+        options.addOption(baseOpt);
+        options.addOption(classOpt);
+        options.addOption(labelOpt);
+        options.addOption(excludeOpt);
+
+        String cp = null;
+        String base_dir = null;
+        String label_type = "expr-tree";
+        String output_file = null;
+        List<String> excluded = new ArrayList<String>();
+
+        try {
+            GnuParser parser = new GnuParser();
+            CommandLine line = parser.parse(options, argv);
+
+            if (line.hasOption(helpOpt.getLongOpt())) {
+                Usage(options);
+            }
+
+            cp = line.getOptionValue(classOpt.getLongOpt());
+            base_dir = line.getOptionValue(baseOpt.getLongOpt());
+            label_type = line.getOptionValue(labelOpt.getLongOpt());
+            output_file = line.getOptionValue(outputOpt.getLongOpt());
+            excluded = Arrays.asList(line.getOptionValues(excludeOpt.getLongOpt()));
+
+        } catch (final MissingOptionException e) {
+            System.err.println(e.getMessage());
+            Usage(options);
+        } catch (final UnrecognizedOptionException e) {
+            System.err.println(e.getMessage());
+            Usage(options);
+        } catch (final ParseException e) {
+            System.err.println(e.getMessage());
             System.exit(1);
         }
-        String cp = args[0];
-        String base_dir = args[1];
-        String label_type = args[2];
-        String output_file = args[3];
+
         List<String> dirs = new ArrayList<String>();
         dirs.add(base_dir);
 
-        soot.Scene S = runSoot(cp, dirs);
-        writeGraph(build_PDG(S, label_type), output_file);
+        soot.Scene S = runSoot(cp, dirs, excluded);
+        writeGraph(build_PDG(S, excluded, label_type), output_file);
     }
 
-    public static soot.Scene runSoot(String cp, List<String> dirs) {
+    public static void Usage(org.apache.commons.cli.Options options) {
+        new HelpFormatter().printHelp("jpdg", "", options, "");
+        System.exit(1);
+    }
+
+    public static soot.Scene runSoot(String cp, List<String> dirs, List<String> excluded) {
         soot.G.reset();
         addPacks();
         soot.Scene S = soot.Scene.v();
         Options O = Options.v();
-        configure_and_run_soot(S, O, cp, dirs);
+        configure_and_run_soot(S, O, cp, dirs, excluded);
 
         // System.out.println();
         // S.getCallGraph();
@@ -95,10 +147,12 @@ public class JPDG {
         return S;
     }
 
-    public static void configure_and_run_soot(soot.Scene S, Options O, String cp, List<String> dirs) {
+    public static void configure_and_run_soot(soot.Scene S, Options O, String cp, List<String> dirs, List<String> excluded) {
+        System.out.println("classpath " + cp);
         O.set_soot_classpath(cp);
         O.set_process_dir(dirs);
         // O.set_exclude(excluded);
+        // O.set_no_bodies_for_excluded(true);
         // O.set_whole_program(true);
         // O.setPhaseOption("cg.spark", "enabled:true");
         // O.setPhaseOption("wjtp", "enabled:true");
@@ -107,6 +161,7 @@ public class JPDG {
         // O.setPhaseOption("bb", "enabled:false");
         O.set_output_format(O.output_format_jimple);
         O.set_keep_line_number(true);
+        O.set_allow_phantom_refs(true);
         O.set_keep_offset(true);
         O.set_ignore_resolution_errors(true);
         O.set_verbose(false);
@@ -126,7 +181,7 @@ public class JPDG {
         }));
     }
 
-    public static Graph build_PDG(soot.Scene S, String label_type) {
+    public static Graph build_PDG(soot.Scene S, List<String> excluded, String label_type) {
         LabelMaker lm = null;
         if (label_type.equals("inst")) {
             lm = new InstructionLabels();
@@ -137,7 +192,7 @@ public class JPDG {
         }
         System.out.println("LABEL TYPE " + label_type + " " + lm);
         soot.util.Chain<soot.SootClass> classes = S.getApplicationClasses();
-        return PDG_Builder.build(lm, classes);
+        return PDG_Builder.build(lm, classes, excluded);
     }
 
     public static void writeGraph(Graph g, String path) {

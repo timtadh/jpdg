@@ -298,7 +298,7 @@ public class pDG_Builder {
                         // this if the block is in a loop and the dependency
                         // is loop carried.
                         if (uid_b != uid_ub) {
-                            g.addEdge(uid_b, uid_ub, "ddg");
+                            g.addEdge(uid_b, uid_ub, "ddg:"+value.getType().toString());
                         }
                     }
                 }
