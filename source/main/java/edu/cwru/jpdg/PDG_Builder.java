@@ -102,7 +102,12 @@ public class PDG_Builder {
                 continue;
             }
             BlockGraph ebg = new UnitBlockGraph(body);
-            pDG_Builder.build(lm, g, c, m, body, ebg);
+            try {
+                pDG_Builder.build(lm, g, c, m, body, ebg);
+            } catch (pDG_Builder.SootError e) {
+                System.err.println(String.format("soot error for method %s\n%s", m, e));
+                continue;
+            }
         }
     }
 }

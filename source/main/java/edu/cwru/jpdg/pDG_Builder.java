@@ -71,9 +71,25 @@ public class pDG_Builder {
         soot.Unit unit;
         soot.Value param;
         public ParameterNotFound(soot.Unit unit, soot.Value param) {
-            super(String.format("Could not find %s in %s", param, unit));
+            super(String.format("Could not find %s[%s] in %s[%s]", param, param.getClass(), unit, unit.getClass()));
             this.unit = unit;
             this.param = param;
+        }
+    }
+
+    public static class SootError extends Error {
+        RuntimeException e;
+        public SootError(RuntimeException e, String msg) {
+            super(msg);
+            this.e = e;
+        }
+        public static SootError create(RuntimeException e) {
+            java.io.StringWriter writer = new java.io.StringWriter();
+            java.io.PrintWriter printWriter = new java.io.PrintWriter(writer);
+            e.printStackTrace(printWriter);
+            printWriter.flush();
+            String stackTrace = writer.toString();
+            return new SootError(e, String.format("%s\n%s", e, stackTrace));
         }
     }
 
@@ -181,11 +197,16 @@ public class pDG_Builder {
         }
     }
 
-    void build_cdg() {
+    void build_cdg() throws Error {
 
         MHGPostDominatorsFinder pdf = new MHGPostDominatorsFinder(cfg);
         MHGDominatorTree pdom_tree = new MHGDominatorTree(pdf);
-        CytronDominanceFrontier rdf = new CytronDominanceFrontier(pdom_tree);
+        CytronDominanceFrontier rdf = null;
+        try {
+            rdf = new CytronDominanceFrontier(pdom_tree);
+        } catch (RuntimeException e) {
+            throw SootError.create(e);
+        }
 
         // initialize a map : uids -> bool indicating if there is a parent for
         // the block in the cdg. If there isn't it is dependent on the dummy
@@ -235,7 +256,19 @@ public class pDG_Builder {
         int i = 0;
         for (soot.ValueBox vb : u.getUseBoxes()) {
             soot.Value v = vb.getValue();
-            if (vb.getValue().equivTo(value)) {
+            if (value instanceof soot.jimple.DoubleConstant && v instanceof soot.jimple.DoubleConstant) {
+                soot.jimple.DoubleConstant dc = (soot.jimple.DoubleConstant)v;
+                soot.jimple.DoubleConstant value_dc = (soot.jimple.DoubleConstant)value;
+                double d = dc.value;
+                double value_d = value_dc.value;
+                // NANs are a killer. We have do this because soot is broken for
+                // NAN constants
+                if (d == d && d == value_d) {
+                    return i;
+                } else if (d != d && value_d != value_d) {
+                    return i;
+                }
+            } else if (vb.getValue().equivTo(value)) {
                 return i;
             }
             i++;
