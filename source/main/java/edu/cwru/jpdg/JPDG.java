@@ -72,10 +72,11 @@ import edu.cwru.jpdg.graph.Graph;
 import edu.cwru.jpdg.label.LabelMaker;
 import edu.cwru.jpdg.label.ExpressionTreeLabels;
 import edu.cwru.jpdg.label.InstructionLabels;
+import edu.cwru.jpdg.label.OpLabels;
 
 public class JPDG {
 
-    public static void main(String[] argv) {
+    public static void main(String[] argv) throws pDG_Builder.Error {
         final Option helpOpt = new Option("h", "help", false, "print this message");
         final Option outputOpt = new Option("o", "output", true, "output file location");
         final Option baseOpt = new Option("b", "base-dir", true, "base directory to analyze");
@@ -109,8 +110,10 @@ public class JPDG {
             base_dir = line.getOptionValue(baseOpt.getLongOpt());
             label_type = line.getOptionValue(labelOpt.getLongOpt());
             output_file = line.getOptionValue(outputOpt.getLongOpt());
-            excluded = Arrays.asList(line.getOptionValues(excludeOpt.getLongOpt()));
-
+            String[] ex = line.getOptionValues(excludeOpt.getLongOpt());
+            if (ex != null) {
+                excluded = Arrays.asList(ex);
+            }
         } catch (final MissingOptionException e) {
             System.err.println(e.getMessage());
             Usage(options);
@@ -180,12 +183,14 @@ public class JPDG {
         }));
     }
 
-    public static Graph build_PDG(soot.Scene S, List<String> excluded, String label_type) {
+    public static Graph build_PDG(soot.Scene S, List<String> excluded, String label_type) throws pDG_Builder.Error {
         LabelMaker lm = null;
         if (label_type.equals("inst")) {
             lm = new InstructionLabels();
         } else if (label_type.equals("expr-tree")) {
             lm = new ExpressionTreeLabels();
+        } else if (label_type.equals("op")) {
+            lm = new OpLabels();
         } else {
             throw new RuntimeException("uknown label type: " + label_type);
         }

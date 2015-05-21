@@ -51,7 +51,7 @@ import edu.cwru.jpdg.label.*;
 
 public class pDG_test {
 
-    soot.SootClass cfg_klass = Javac.classes("test.pDG.CFG").get("test.pDG.CFG");
+    soot.SootClass cfg_klass = Javac.classes("test.pDG.Fib").get("test.pDG.Fib");
 
     public pDG_Builder fib_pDG_Builder(String method) throws pDG_Builder.Error {
         pDG_Builder pDG = pDG_Builder.test_instance();
@@ -61,16 +61,16 @@ public class pDG_test {
         pDG.method = cfg_klass.getMethodByName(method);
         pDG.body = pDG.method.retrieveActiveBody();
         assert pDG.body != null;
-        pDG.cfg = new UnitBlockGraph(pDG.body);
+        pDG.cfg = new ExpandedBlockGraph(pDG.body);
         pDG.init();
         return pDG;
     }
 
-    // @Test
+    @Test
     public void test_fib_cfg() throws pDG_Builder.Error {
         pDG_Builder pDG = fib_pDG_Builder("fib");
         pDG.build_cfg();
-        Dotty.graphviz("test.pDG.CFG.fib.cfg", Dotty.dotty(pDG.g.Serialize()));
+        Dotty.graphviz("test.pDG.Fib.fib.cfg", Dotty.dotty(pDG.g.Serialize()));
 
         assertThat(pDG.g.hasEdge(0, 1, "cfg"), is(true));
         assertThat(pDG.g.hasEdge(1, 2, "cfg"), is(true));
@@ -82,11 +82,11 @@ public class pDG_test {
         assertThat(pDG.g.hasEdge(5, 4, "cfg"), is(true));
     }
 
-    // @Test
+    @Test
     public void test_fib_caller_cfg() throws pDG_Builder.Error {
         pDG_Builder pDG = fib_pDG_Builder("fib_caller");
         pDG.build_cfg();
-        Dotty.graphviz("test.pDG.CFG.fib_caller.cfg", Dotty.dotty(pDG.g.Serialize()));
+        Dotty.graphviz("test.pDG.Fib.fib_caller.cfg", Dotty.dotty(pDG.g.Serialize()));
 
         assertThat(pDG.g.hasEdge(0, 1, "cfg"), is(true));
         assertThat(pDG.g.hasEdge(1, 2, "cfg"), is(true));
@@ -95,11 +95,11 @@ public class pDG_test {
         assertThat(pDG.g.hasEdge(4, 5, "cfg"), is(true));
     }
 
-    // @Test
+    @Test
     public void test_fib_cdg() throws pDG_Builder.Error {
         pDG_Builder pDG = fib_pDG_Builder("fib");
         pDG.build_cdg();
-        Dotty.graphviz("test.pDG.CFG.fib.cdg", Dotty.dotty(pDG.g.Serialize()));
+        Dotty.graphviz("test.pDG.Fib.fib.cdg", Dotty.dotty(pDG.g.Serialize()));
 
         assertThat(pDG.g.hasEdge(0, 1, "cdg"), is(true));
         assertThat(pDG.g.hasEdge(1, 2, "cdg"), is(true));
@@ -109,11 +109,11 @@ public class pDG_test {
         assertThat(pDG.g.hasEdge(4, 5, "cdg"), is(true));
     }
 
-    // @Test
+    @Test
     public void test_fib_ddg() throws pDG_Builder.Error {
         pDG_Builder pDG = fib_pDG_Builder("fib");
         pDG.build_ddg();
-        Dotty.graphviz("test.pDG.CFG.fib.ddg", Dotty.dotty(pDG.g.Serialize()));
+        Dotty.graphviz("test.pDG.Fib.fib.ddg", Dotty.dotty(pDG.g.Serialize()));
 
         assertThat(pDG.g.hasEdge(1, 5, "ddg:int:0"), is(true));
         assertThat(pDG.g.hasEdge(1, 6, "ddg:int:0"), is(true));
@@ -132,7 +132,16 @@ public class pDG_test {
         pDG_Builder pDG = fib_pDG_Builder("fib");
         pDG.build_cdg();
         pDG.build_ddg();
-        Dotty.graphviz("test.pDG.CFG.fib.pDG", Dotty.dotty(pDG.g.Serialize()));
+        Dotty.graphviz("test.pDG.Fib.fib.pDG", Dotty.dotty(pDG.g.Serialize()));
+    }
+
+    @Test
+    public void write_fib_rec_pDG() throws pDG_Builder.Error {
+        pDG_Builder pDG = fib_pDG_Builder("fib_rec");
+        pDG.build_cdg();
+        pDG.build_ddg();
+        Dotty.graphviz("test.pDG.Fib.fib_rec.pDG", Dotty.dotty(pDG.g.Serialize()));
     }
 }
+
 

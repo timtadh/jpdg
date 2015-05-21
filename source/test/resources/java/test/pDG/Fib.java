@@ -29,12 +29,21 @@ package test.pDG;
  *   http://www.gnu.org/licenses/lgpl-2.1.html
  */ 
 
-public class CFG {
+public class Fib {
 
-    int y = 0;
+    public int fib_rec(int x) {
+        System.out.println("hello");
+        switch (x) {
+        case 0:
+        case 1:
+            return 0;
+        default:
+            return fib_rec(x - 1) + fib_rec(x - 2);
+        }
+    }
 
     public int fib(int x) {
-        int prev = y;
+        int prev = 0;
         int cur = 1;
         if (x == 0) {
             cur = 0;
@@ -49,7 +58,7 @@ public class CFG {
     }
 
     public static int fib_caller(int x) {
-        CFG cfg = new CFG();
+        Fib cfg = new Fib();
         int r = 0;
         r += cfg.fib(x);
         r += 1;

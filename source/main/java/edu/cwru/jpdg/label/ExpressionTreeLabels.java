@@ -75,7 +75,11 @@ public class ExpressionTreeLabels implements LabelMaker {
         return ExpressionTreeLabels.NodeType(b);
     }
 
-    public String label(pDG_Builder pDG, int uid, Block b) {
+    public void postLabel(pDG_Builder pDG, int uid, Block b) {
+        return;
+    }
+
+    public String label(pDG_Builder pDG, Block b) {
         HashMap<Integer,Node> var_ops = new HashMap<Integer,Node>();
         TreeBuilder tree_builder = new TreeBuilder(var_ops);
 
@@ -121,8 +125,6 @@ public class ExpressionTreeLabels implements LabelMaker {
             }
         }
         label += tail_label;
-        // return "block uid: " + uid + "\n" + b.toString() + "\n" + label + "\n" + live_vars;
-        // return uid + " " + label;
         return label;
     }
 

@@ -96,7 +96,7 @@ class Configuration(conf.BaseConfig):
             self.jpdg_jar,
             '-c', subject['soot_classpath'],
             '-b', subject['target'],
-            '-l', 'expr-tree',
+            '-l', 'op',
         ]
         for ex_dir in subject['exclude_pkgs']:
             subject['jpdg_cmd'] += ['-e', ex_dir]

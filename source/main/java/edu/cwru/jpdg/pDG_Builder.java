@@ -77,15 +77,15 @@ public class pDG_Builder {
         }
     }
 
+    public Graph g;
     LabelMaker lm;
-    Graph g;
     soot.SootClass klass;
     soot.SootMethod method;
     soot.Body body;
     BlockGraph cfg;
     UnitGraph ucfg;
 
-    int entry_uid;
+    public int entry_uid;
     HashMap<Integer,Integer> block_uids = new HashMap<Integer,Integer>();
     HashMap<soot.Unit,Block> unit_to_blk = new HashMap<soot.Unit,Block>();
 
@@ -117,7 +117,6 @@ public class pDG_Builder {
         this.assign_uids();
         this.map_units_to_blks();
         this.ddg_builder = new ddg_Builder();
-        this.assign_labels();
     }
 
     void build_pDG() throws Error {
@@ -128,7 +127,7 @@ public class pDG_Builder {
 
     void assign_uids() {
         this.entry_uid = g.addNode(
-            method.getSignature() + "-entry", "",
+            "entry-"+method.getSignature(), "",
             klass.getPackageName(), klass.getName(), method.getSignature(),
             "entry",
             method.getJavaSourceStartLineNumber(),
@@ -139,8 +138,8 @@ public class pDG_Builder {
         for (Iterator<Block> i = cfg.iterator(); i.hasNext(); ) {
             Block b = i.next();
             int uid = g.addNode(
-                // klass.getPackageName() + klass.getName() + method.getName() + b.getIndexInMethod(),
-                "", b.toString(),
+                lm.label(this, b),
+                b.toString(),
                 klass.getPackageName(), klass.getName(), method.getSignature(),
                 lm.nodeType(b),
                 b.getHead().getJavaSourceStartLineNumber(),
@@ -149,14 +148,7 @@ public class pDG_Builder {
                 b.getTail().getJavaSourceStartColumnNumber()
             );
             block_uids.put(b.getIndexInMethod(), uid);
-        }
-    }
-
-    void assign_labels() {
-        for (Iterator<Block> i = cfg.iterator(); i.hasNext(); ) {
-            Block b = i.next();
-            int uid = block_uids.get(b.getIndexInMethod());
-            g.setLabel(uid, lm.label(this, uid, b));
+            lm.postLabel(this, uid, b);
         }
     }
 
@@ -215,7 +207,7 @@ public class pDG_Builder {
                     Block x = ((Block)((DominatorNode)o).getGode());
                     int uid_x = block_uids.get(x.getIndexInMethod());
                     if (uid_x != uid_y) {
-                        g.addEdge(uid_x, uid_y, "cdg");
+                        g.addEdge(uid_x, uid_y, "");
                         has_parent.put(uid_y, true);
                     }
                 }
@@ -230,13 +222,25 @@ public class pDG_Builder {
             Block y = i.next();
             int uid_y = block_uids.get(y.getIndexInMethod());
             if (!has_parent.get(uid_y)) {
-                g.addEdge(entry_uid, uid_y, "cdg");
+                g.addEdge(entry_uid, uid_y, "");
             }
         }
     }
 
     void build_ddg() throws Error {
         ddg_builder.build();
+    }
+
+    public int get_param_number(soot.Unit u, soot.Value value) throws Error {
+        int i = 0;
+        for (soot.ValueBox vb : u.getUseBoxes()) {
+            soot.Value v = vb.getValue();
+            if (vb.getValue().equivTo(value)) {
+                return i;
+            }
+            i++;
+        }
+        throw new ParameterNotFound(u, value);
     }
 
     public class ddg_Builder {
@@ -271,8 +275,7 @@ public class pDG_Builder {
                         // In the future we want to dataflow through field
                         // references however that will always be handled by
                         // another method as it will be inter-procedural.
-                        System.err.println("LeftOp was not a local");
-                        System.err.println(def_stmt.getLeftOp());
+                        // System.err.println(String.format("LeftOp was not a local, %s", def_stmt.getLeftOp()));
                         continue;
                     }
                     if (!def_stmts.containsKey(var.getNumber())) {
@@ -285,7 +288,7 @@ public class pDG_Builder {
         }
 
         void build() throws Error {
-            System.err.println("building ddg for " + klass.getPackageName() + " " + klass.getName() + " " + method.getName());
+            // System.err.println("building ddg for " + klass.getPackageName() + " " + klass.getName() + " " + method.getName());
 
             // For each block, find the blocks which are data dependent.
 
@@ -311,7 +314,7 @@ public class pDG_Builder {
                         Block ub = unit_to_blk.get(u.unit);
                         int uid_ub = block_uids.get(ub.getIndexInMethod());
                         int param = get_param_number(u.unit, value);
-                        String label = String.format("ddg:%s:%d", value.getType(), param);
+                        String label = String.format("%s:%d", value.getType(), param);
                         // In the future we may want to consider allowing
                         // this if the block is in a loop and the dependency
                         // is loop carried.
@@ -323,16 +326,5 @@ public class pDG_Builder {
             }
         }
 
-        int get_param_number(soot.Unit u, soot.Local value) throws Error {
-            int i = 0;
-            for (soot.ValueBox vb : u.getUseBoxes()) {
-                soot.Value v = vb.getValue();
-                if (vb.getValue().equivTo(value)) {
-                    return i;
-                }
-                i++;
-            }
-            throw new ParameterNotFound(u, value);
-        }
     }
 }

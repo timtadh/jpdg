@@ -35,23 +35,24 @@ import com.google.gson.Gson;
 
 public class Node {
 
-    public int id;
-    public int label;
-    public String extra;
-    public String package_name;
-    public String class_name;
-    public String method_name;
-    public String type;
-    public int start_line = -1;
-    public int start_column = -1;
-    public int end_line = -1;
-    public int end_column = -1;
-    Graph g;
+    public final int id;
+    public final int lnum;
+    public final String label;
+    public final String extra;
+    public final String package_name;
+    public final String class_name;
+    public final String method_name;
+    public final String type;
+    public final int start_line;
+    public final int start_column;
+    public final int end_line;
+    public final int end_column;
 
-    public Node(int id, int label, String extra,
+    public Node(int id, int lnum, String label, String extra,
                 String package_name, String class_name, String method_name, String type,
-                int start_line, int start_column, int end_line, int end_column, Graph g) {
+                int start_line, int start_column, int end_line, int end_column) {
         this.id = id;
+        this.lnum = lnum;
         this.label = label;
         this.extra = extra;
         this.package_name = package_name;
@@ -62,13 +63,50 @@ public class Node {
         this.start_column = start_column;
         this.end_line = end_line;
         this.end_column = end_column;
-        this.g = g;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (o instanceof Node) {
+            return equals((Node)o);
+        }
+        return false;
+    }
+
+    public boolean equals(Node n) {
+        if (n == null) {
+            return false;
+        }
+        return n.label.equals(label) &&
+               n.package_name.equals(package_name) &&
+               n.class_name.equals(class_name) &&
+               n.method_name.equals(method_name) &&
+               n.type.equals(type) &&
+               n.start_line == start_line &&
+               n.start_column == start_column &&
+               n.end_line == end_line &&
+               n.end_column == end_column;
+    }
+
+    @Override
+    public int hashCode() {
+        int code = 43;
+        code = label == null ? code : 3*code + label.hashCode();
+        code = package_name == null ? code : 7*code + package_name.hashCode();
+        code = class_name == null ? code : 11*code + class_name.hashCode();
+        code = method_name == null ? code : 13*code + method_name.hashCode();
+        code = type == null ? code : 17*code + type.hashCode();
+        code = 23*code + start_line;
+        code = 29*code + start_column;
+        code = 31*code + end_line;
+        code = 37*code + end_column;
+        return code;
     }
 
     public String Serialize() {
         Map<String,Object> M = new LinkedHashMap<String,Object>();
         M.put("id", id);
-        M.put("label", g.label(id));
+        M.put("label", label);
         M.put("extra", extra);
         M.put("package_name", package_name);
         M.put("class_name", class_name);

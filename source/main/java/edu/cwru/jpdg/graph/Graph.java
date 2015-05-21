@@ -41,23 +41,33 @@ public class Graph {
 
     int next_uid = 0;
 
-    HashMap<Integer,Node> nodes = new HashMap<Integer,Node>();
-    List<String> labels =
-        new ArrayList<String>();
-    HashMap<String,Integer> rlabels =
-        new HashMap<String,Integer>();
-    HashMap<Integer,Integer> node_labels =
-        new HashMap<Integer,Integer>();
+    public HashMap<Integer,Node> nodes = new HashMap<Integer,Node>();
+    HashMap<Node,Integer> rnodes = new HashMap<Node,Integer>();
+    List<String> labels = new ArrayList<String>();
+    HashMap<String,Integer> rlabels = new HashMap<String,Integer>();
+    HashMap<Integer,Integer> node_labels = new HashMap<Integer,Integer>();
     HashMap<String,HashMap<Integer,Set<Integer>>> edges =
         new HashMap<String,HashMap<Integer,Set<Integer>>>();
 
     public Graph() { }
 
     public int addNode(String label, String extra, String package_name, String class_name, String method_name, String type, int start_l, int start_c, int end_l, int end_c) {
+        int lnum = label_num(label);
         int uid = next_uid;
+        Node node = new Node(uid, lnum, label, extra, package_name, class_name, method_name, type, start_l, start_c, end_l, end_c);
+        if (label.equals("goto") && start_l == 180 && class_name.equals("org.eclipse.jgit.internal.storage.file.RefDirectoryRename")) {
+            System.err.println("*********************************************");
+            System.err.println(String.format("%d %s %s", uid, rnodes.get(node), node.Serialize()));
+            System.err.println("*********************************************");
+        }
+        Integer cached = rnodes.get(node);
+        if (cached != null) {
+            return cached;
+        }
         next_uid++;
-        nodes.put(uid, new Node(uid, label_num(label), extra, package_name, class_name, method_name, type, start_l, start_c, end_l, end_c, this));
-        node_labels.put(uid, label_num(label));
+        nodes.put(uid, node);
+        rnodes.put(node, uid);
+        node_labels.put(uid, lnum);
         return uid;
     }
 

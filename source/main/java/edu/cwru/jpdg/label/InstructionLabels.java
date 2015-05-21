@@ -37,7 +37,11 @@ import edu.cwru.jpdg.pDG_Builder;
 
 public class InstructionLabels implements LabelMaker {
 
-    public String label(pDG_Builder pDG, int uid, Block b) {
+    public void postLabel(pDG_Builder pDG, int uid, Block b) {
+        return;
+    }
+
+    public String label(pDG_Builder pDG, Block b) {
         StringBuilder sb = new StringBuilder();
         for (Iterator<soot.Unit> it = b.iterator(); it.hasNext(); ) {
             soot.Unit u = it.next();

@@ -48,7 +48,7 @@ public class PDG_Builder {
     Chain<soot.SootClass> classes;
     List<String> excluded;
 
-    public static Graph build(LabelMaker lm, Chain<soot.SootClass> classes, List<String> excluded) {
+    public static Graph build(LabelMaker lm, Chain<soot.SootClass> classes, List<String> excluded) throws pDG_Builder.Error {
         PDG_Builder self = new PDG_Builder(lm, classes, excluded);
         self.build_PDG();
         return self.g;
@@ -60,7 +60,7 @@ public class PDG_Builder {
         this.excluded = excluded;
     }
 
-    void build_PDG() {
+    void build_PDG() throws pDG_Builder.Error {
         System.out.println(classes);
         for (soot.SootClass c : classes) {
             String pkg_name = c.getPackageName();
@@ -87,24 +87,22 @@ public class PDG_Builder {
                 }
             }
             if (use) {
-                try {
-                    process_class(c);
-                } catch (Exception e) {
-                    System.err.println(e);
-                }
+                process_class(c);
             }
         }
     }
 
-    void process_class(soot.SootClass c) {
+    void process_class(soot.SootClass c) throws pDG_Builder.Error {
         for (soot.SootMethod m : c.getMethods()) {
+            soot.Body body = null;
             try {
-                soot.Body body = m.retrieveActiveBody();
-                BlockGraph ebg = new UnitBlockGraph(body);
-                pDG_Builder.build(lm, g, c, m, body, ebg);
-            } catch (Exception e) {
+                body = m.retrieveActiveBody();
+            } catch (RuntimeException e) {
                 System.err.println(e);
+                continue;
             }
+            BlockGraph ebg = new UnitBlockGraph(body);
+            pDG_Builder.build(lm, g, c, m, body, ebg);
         }
     }
 }
