@@ -15,7 +15,8 @@ if File::exists?('parsemis/Buildfile')
 end
 
 repositories.remote << 'http://mirrors.ibiblio.org/pub/mirrors/maven2/'
-#repositories.remote << 'http://repo1.maven.org/'
+repositories.remote << 'http://repo1.maven.org/'
+repositories.remote << 'https://oss.sonatype.org/content/repositories/releases/'
 #repositories.remote << 'http://mvnrepository.com/'
 Project.local_task :run
 
@@ -44,10 +45,26 @@ soot_libs = [
   'libs/dexlib-1.4.3-dev.jar',
   'soot/libs/polyglot.jar',
   'soot/libs/AXMLPrinter2.jar',
+  'org.apache.commons:commons-lang3:jar:3.4',
   'org.ow2.asm:asm-debug-all:jar:5.0.3',
   'com.google.guava:guava:jar:18.0',
   baksmali_2,
 ] + jasmin_libs
+
+soot_test_libs = [
+  'org.hamcrest:hamcrest-all:jar:1.3',
+  'org.mockito:mockito-all:jar:1.10.8',
+  #'org.powermock:powermock-mockito-release-full:jar:1.6.1',
+
+  'org.powermock:powermock-module-junit4:jar:1.6.1',
+  'org.powermock:powermock-module-junit4-common:jar:1.6.1',
+  'org.powermock:powermock-api-mockito:jar:1.6.1',
+  'org.powermock:powermock-reflect:jar:1.6.1',
+  'org.powermock:powermock-core:jar:1.6.1',
+  'org.powermock:powermock-api-support:jar:1.6.1',
+
+  'org.javassist:javassist:jar:3.18.2-GA',
+]
 
 ant_lib = [
   'org.apache.ant:ant:jar:1.7.0',
@@ -253,7 +270,7 @@ define 'soot', base_dir: "soot", layout: soot_layout do |soot|
     "soot/generated/sablecc",
     "soot/generated/jastadd",
   ]
-  test.with 'org.hamcrest:hamcrest-all:jar:1.3'
+  test.with soot_test_libs
   test.using :java_args => ['-ea']
 
   mkdir_p _("target/main/classes/soot/baf/toolkits/base/")
