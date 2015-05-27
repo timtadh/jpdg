@@ -190,9 +190,20 @@ public class pDG_Builder {
         for (Iterator<Block> i = cfg.iterator(); i.hasNext(); ) {
             Block b = i.next();
             int uid_i = block_uids.get(b.getIndexInMethod());
+            soot.Unit tail = b.getTail();
             for (Block s : b.getSuccs()) {
+                soot.Unit head = s.getHead();
                 int uid_s = block_uids.get(s.getIndexInMethod());
-                g.addEdge(uid_i, uid_s, "cfg");
+                if (tail instanceof soot.jimple.IfStmt) {
+                    soot.jimple.IfStmt t = (soot.jimple.IfStmt)tail;
+                    if (t.getTarget().equals(head)) {
+                        g.addEdge(uid_i, uid_s, "cfg:true");
+                    } else {
+                        g.addEdge(uid_i, uid_s, "cfg:false");
+                    }
+                } else {
+                    g.addEdge(uid_i, uid_s, "cfg");
+                }
             }
         }
     }
@@ -233,7 +244,7 @@ public class pDG_Builder {
                     }
                 }
             } catch (java.lang.RuntimeException e) {
-                System.err.println("CDG builder swallowing > " + e);
+                System.err.println("CDG builder swallowing > " + SootError.create(e));
             }
         }
 
@@ -360,12 +371,7 @@ public class pDG_Builder {
                         int uid_ub = block_uids.get(ub.getIndexInMethod());
                         int param = get_param_number(u.unit, value);
                         String label = String.format("%s:%d", value.getType(), param);
-                        // In the future we may want to consider allowing
-                        // this if the block is in a loop and the dependency
-                        // is loop carried.
-                        if (uid_b != uid_ub) {
-                            g.addEdge(uid_b, uid_ub, label);
-                        }
+                        g.addEdge(uid_b, uid_ub, label);
                     }
                 }
             }
