@@ -40,9 +40,8 @@ jasmin_libs = [
 ]
 
 soot_libs = [
-  'libs/dexlib2-2.0.5-dev.jar',
-  'libs/util-2.0.5-dev.jar',
-  'libs/dexlib-1.4.3-dev.jar',
+  'libs/util-2.0.6-dev.jar',
+  'libs/dexlib2-2.0.6-dev.jar',
   'soot/libs/polyglot.jar',
   'soot/libs/AXMLPrinter2.jar',
   'org.apache.commons:commons-lang3:jar:3.4',
@@ -83,6 +82,10 @@ jpdg_libs = [
   'commons-codec:commons-codec:jar:1.4',
   'commons-lang:commons-lang:jar:2.6',
   'commons-cli:commons-cli:jar:1.2',
+]
+
+jpdg_extra = [
+  'libs/dexlib2-2.0.6-dev.jar',
 ]
 
 task :jas do
@@ -142,7 +145,7 @@ define 'jpdg', layout: jpdg_layout do |soot|
   package(:jar).with(:manifest => {
     'Main-Class'=>'edu.cwru.jpdg.JPDG'
   }).merge(
-    [ 'libs/soot.jar' ] + jpdg_libs
+    [ 'libs/soot.jar' ] + jpdg_libs + jpdg_extra
   )
   compile.with [ 'libs/soot.jar' ] + jpdg_libs
   test_libs = [

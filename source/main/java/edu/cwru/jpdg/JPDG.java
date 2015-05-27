@@ -167,6 +167,11 @@ public class JPDG {
         O.set_keep_offset(true);
         O.set_ignore_resolution_errors(true);
         O.set_verbose(false);
+        if (dirs.size() == 1 && dirs.get(0).endsWith("apk")) {
+            System.out.println("setting up as an android scan");
+            O.set_force_android_jar("/home/hendersont/srcs/android-sdk-linux/platforms/android-21/");
+            O.set_src_prec(O.src_prec_apk);
+        }
         // O.set_app(true);
 
         S.loadNecessaryClasses();

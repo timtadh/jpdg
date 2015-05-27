@@ -268,6 +268,18 @@ public class pDG_Builder {
                 } else if (d != d && value_d != value_d) {
                     return i;
                 }
+            } else if (value instanceof soot.jimple.FloatConstant && v instanceof soot.jimple.FloatConstant) {
+                soot.jimple.FloatConstant fc = (soot.jimple.FloatConstant)v;
+                soot.jimple.FloatConstant value_fc = (soot.jimple.FloatConstant)value;
+                float f = fc.value;
+                float value_f = value_fc.value;
+                // NANs are a killer. We have do this because soot is broken for
+                // NAN constants
+                if (f == f && f == value_f) {
+                    return i;
+                } else if (f != f && value_f != value_f) {
+                    return i;
+                }
             } else if (vb.getValue().equivTo(value)) {
                 return i;
             }

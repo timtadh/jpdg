@@ -93,7 +93,9 @@ public class PDG_Builder {
     }
 
     void process_class(soot.SootClass c) throws pDG_Builder.Error {
+        System.out.println(c);
         for (soot.SootMethod m : c.getMethods()) {
+            System.out.println(String.format("   %s", m));
             soot.Body body = null;
             try {
                 body = m.retrieveActiveBody();
