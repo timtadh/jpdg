@@ -55,7 +55,7 @@ public class api_examples_test {
     public pDG_Builder get_builder(String method) throws pDG_Builder.Error {
         pDG_Builder pDG = pDG_Builder.test_instance();
         pDG.g = new Graph();
-        pDG.lm = new ExpressionTreeLabels();
+        pDG.lm = new OpLabels();
         pDG.klass = cfg_klass;
         pDG.method = cfg_klass.getMethodByName(method);
         pDG.body = pDG.method.retrieveActiveBody();

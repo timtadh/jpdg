@@ -100,6 +100,12 @@ public class Dotty {
     public static void graphviz(String name, String graph) {
 
         byte[] bytes = graph.getBytes();
+        try {
+            Path p = Paths.get("./reports/"+name+".dot");
+            Files.write(p, bytes);
+        } catch(IOException e) {
+            System.out.println(graph);
+        }
 
         try {
             ProcessBuilder pb = new ProcessBuilder("dot", "-Tpng", "-o", "reports/" + name + ".png");

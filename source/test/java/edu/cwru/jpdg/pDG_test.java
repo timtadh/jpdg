@@ -41,6 +41,13 @@ import org.junit.runners.JUnit4;
 
 import java.util.*;
 
+
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.nio.file.Path;
+
+
 import soot.toolkits.graph.pdg.EnhancedBlockGraph;
 import soot.toolkits.graph.ExpandedBlockGraph;
 import soot.toolkits.graph.UnitBlockGraph;
@@ -60,8 +67,14 @@ public class pDG_test {
         pDG.klass = cfg_klass;
         pDG.method = cfg_klass.getMethodByName(method);
         pDG.body = pDG.method.retrieveActiveBody();
+        Path p = Paths.get("./reports/test.pDG.Fib."+method+".jimple");
+        try {
+            Files.write(p, pDG.body.toString().getBytes());
+        } catch(IOException e) {
+            System.out.println(pDG.body);
+        }
         assert pDG.body != null;
-        pDG.cfg = new ExpandedBlockGraph(pDG.body);
+        pDG.cfg = new UnitBlockGraph(pDG.body);
         pDG.init();
         return pDG;
     }
@@ -82,7 +95,7 @@ public class pDG_test {
         assertThat(pDG.g.hasEdge(5, 4, "cfg"), is(true));
     }
 
-    @Test
+    // @Test
     public void test_fib_caller_cfg() throws pDG_Builder.Error {
         pDG_Builder pDG = fib_pDG_Builder("fib_caller");
         pDG.build_cfg();
@@ -95,18 +108,18 @@ public class pDG_test {
         assertThat(pDG.g.hasEdge(4, 5, "cfg"), is(true));
     }
 
-    @Test
+    // @Test
     public void test_fib_cdg() throws pDG_Builder.Error {
         pDG_Builder pDG = fib_pDG_Builder("fib");
         pDG.build_cdg();
         Dotty.graphviz("test.pDG.Fib.fib.cdg", Dotty.dotty(pDG.g.Serialize()));
 
-        assertThat(pDG.g.hasEdge(0, 1, "cdg"), is(true));
-        assertThat(pDG.g.hasEdge(1, 2, "cdg"), is(true));
-        assertThat(pDG.g.hasEdge(1, 3, "cdg"), is(true));
-        assertThat(pDG.g.hasEdge(0, 6, "cdg"), is(true));
-        assertThat(pDG.g.hasEdge(1, 4, "cdg"), is(true));
-        assertThat(pDG.g.hasEdge(4, 5, "cdg"), is(true));
+        assertThat(pDG.g.hasEdge(0, 1, ""), is(true));
+        assertThat(pDG.g.hasEdge(1, 2, ""), is(true));
+        assertThat(pDG.g.hasEdge(1, 3, ""), is(true));
+        assertThat(pDG.g.hasEdge(0, 6, ""), is(true));
+        assertThat(pDG.g.hasEdge(1, 4, ""), is(true));
+        assertThat(pDG.g.hasEdge(4, 5, ""), is(true));
     }
 
     @Test
@@ -115,16 +128,16 @@ public class pDG_test {
         pDG.build_ddg();
         Dotty.graphviz("test.pDG.Fib.fib.ddg", Dotty.dotty(pDG.g.Serialize()));
 
-        assertThat(pDG.g.hasEdge(1, 5, "ddg:int:0"), is(true));
-        assertThat(pDG.g.hasEdge(1, 6, "ddg:int:0"), is(true));
-        assertThat(pDG.g.hasEdge(2, 6, "ddg:int:0"), is(true));
-        assertThat(pDG.g.hasEdge(3, 4, "ddg:int:0"), is(true));
-        assertThat(pDG.g.hasEdge(5, 4, "ddg:int:0"), is(true));
-        assertThat(pDG.g.hasEdge(5, 6, "ddg:int:0"), is(true));
-        assertThat(pDG.g.hasEdge(1, 4, "ddg:int:1"), is(true));
-        assertThat(pDG.g.hasEdge(1, 5, "ddg:int:1"), is(true));
-        assertThat(pDG.g.hasEdge(3, 5, "ddg:int:1"), is(true));
-        assertThat(pDG.g.hasEdge(1, 5, "ddg:int:2"), is(true));
+        assertThat(pDG.g.hasEdge(1, 5, "int:0"), is(true));
+        assertThat(pDG.g.hasEdge(1, 6, "int:0"), is(true));
+        assertThat(pDG.g.hasEdge(2, 6, "int:0"), is(true));
+        assertThat(pDG.g.hasEdge(3, 4, "int:0"), is(true));
+        assertThat(pDG.g.hasEdge(5, 4, "int:0"), is(true));
+        assertThat(pDG.g.hasEdge(5, 6, "int:0"), is(true));
+        assertThat(pDG.g.hasEdge(1, 4, "int:1"), is(true));
+        assertThat(pDG.g.hasEdge(1, 5, "int:1"), is(true));
+        assertThat(pDG.g.hasEdge(3, 5, "int:1"), is(true));
+        assertThat(pDG.g.hasEdge(1, 5, "int:2"), is(true));
     }
 
     @Test
@@ -135,7 +148,7 @@ public class pDG_test {
         Dotty.graphviz("test.pDG.Fib.fib.pDG", Dotty.dotty(pDG.g.Serialize()));
     }
 
-    @Test
+    // @Test
     public void write_fib_rec_pDG() throws pDG_Builder.Error {
         pDG_Builder pDG = fib_pDG_Builder("fib_rec");
         pDG.build_cdg();

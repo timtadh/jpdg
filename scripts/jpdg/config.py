@@ -92,6 +92,7 @@ class Configuration(conf.BaseConfig):
         ))
         subject['jpdg_cmd'] = [
             'java',
+            '-Xmx6g',
             '-jar',
             self.jpdg_jar,
             '-c', subject['soot_classpath'],

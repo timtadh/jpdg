@@ -190,7 +190,7 @@ public class OpLabels implements LabelMaker {
         int uid = pDG.g.addNode(
             label(pDG, c),
             c.toString(),
-            n.package_name, n.class_name, n.method_name,
+            n.package_name, n.class_name, n.source_file, n.method_name,
             c.getType().toString(),
             n.start_line,
             n.start_column,

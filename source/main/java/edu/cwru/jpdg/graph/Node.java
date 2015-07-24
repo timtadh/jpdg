@@ -41,6 +41,7 @@ public class Node {
     public final String extra;
     public final String package_name;
     public final String class_name;
+    public final String source_file;
     public final String method_name;
     public final String type;
     public final int start_line;
@@ -49,7 +50,8 @@ public class Node {
     public final int end_column;
 
     public Node(int id, int lnum, String label, String extra,
-                String package_name, String class_name, String method_name, String type,
+                String package_name, String class_name, String source_file,
+                String method_name, String type,
                 int start_line, int start_column, int end_line, int end_column) {
         this.id = id;
         this.lnum = lnum;
@@ -57,6 +59,7 @@ public class Node {
         this.extra = extra;
         this.package_name = package_name;
         this.class_name = class_name;
+        this.source_file = source_file;
         this.method_name = method_name;
         this.type = type;
         this.start_line = start_line;
@@ -80,6 +83,7 @@ public class Node {
         return n.label.equals(label) &&
                n.package_name.equals(package_name) &&
                n.class_name.equals(class_name) &&
+               n.source_file.equals(source_file) &&
                n.method_name.equals(method_name) &&
                n.type.equals(type) &&
                n.start_line == start_line &&
@@ -94,12 +98,13 @@ public class Node {
         code = label == null ? code : 3*code + label.hashCode();
         code = package_name == null ? code : 7*code + package_name.hashCode();
         code = class_name == null ? code : 11*code + class_name.hashCode();
-        code = method_name == null ? code : 13*code + method_name.hashCode();
-        code = type == null ? code : 17*code + type.hashCode();
-        code = 23*code + start_line;
-        code = 29*code + start_column;
-        code = 31*code + end_line;
-        code = 37*code + end_column;
+        code = source_file == null ? code : 13*code + source_file.hashCode();
+        code = method_name == null ? code : 17*code + method_name.hashCode();
+        code = type == null ? code : 23*code + type.hashCode();
+        code = 29*code + start_line;
+        code = 31*code + start_column;
+        code = 37*code + end_line;
+        code = 39*code + end_column;
         return code;
     }
 
@@ -110,6 +115,7 @@ public class Node {
         M.put("extra", extra);
         M.put("package_name", package_name);
         M.put("class_name", class_name);
+        M.put("source_file", source_file);
         M.put("method_name", method_name);
         M.put("type", type);
         M.put("start_line", start_line);

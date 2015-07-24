@@ -51,15 +51,10 @@ public class Graph {
 
     public Graph() { }
 
-    public int addNode(String label, String extra, String package_name, String class_name, String method_name, String type, int start_l, int start_c, int end_l, int end_c) {
+    public int addNode(String label, String extra, String package_name, String class_name, String source_file, String method_name, String type, int start_l, int start_c, int end_l, int end_c) {
         int lnum = label_num(label);
         int uid = next_uid;
-        Node node = new Node(uid, lnum, label, extra, package_name, class_name, method_name, type, start_l, start_c, end_l, end_c);
-        if (label.equals("goto") && start_l == 180 && class_name.equals("org.eclipse.jgit.internal.storage.file.RefDirectoryRename")) {
-            System.err.println("*********************************************");
-            System.err.println(String.format("%d %s %s", uid, rnodes.get(node), node.Serialize()));
-            System.err.println("*********************************************");
-        }
+        Node node = new Node(uid, lnum, label, extra, package_name, class_name, source_file, method_name, type, start_l, start_c, end_l, end_c);
         Integer cached = rnodes.get(node);
         if (cached != null) {
             return cached;

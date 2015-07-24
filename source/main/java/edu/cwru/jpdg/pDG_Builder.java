@@ -31,6 +31,8 @@ package edu.cwru.jpdg;
 
 import java.util.*;
 
+import soot.SourceLocator;
+
 import soot.jimple.toolkits.callgraph.CHATransformer;
 import soot.jimple.toolkits.callgraph.CallGraph;
 import soot.jimple.toolkits.callgraph.Targets;
@@ -141,10 +143,23 @@ public class pDG_Builder {
         this.build_ddg();
     }
 
+    soot.SootClass outer(soot.SootClass cls) {
+        if (cls.hasOuterClass()) {
+            return cls.getOuterClass();
+        }
+        return null;
+    }
+
     void assign_uids() {
+        String source = "";
+        try {
+            source = new String(klass.getTag("SourceFileTag").getValue(), "UTF-8");
+        } catch (java.io.UnsupportedEncodingException e) {
+            throw new RuntimeException(e.toString());
+        }
         this.entry_uid = g.addNode(
             "entry-"+method.getSignature(), "",
-            klass.getPackageName(), klass.getName(), method.getSignature(),
+            klass.getPackageName(), klass.getName(), source, method.getSignature(),
             "entry",
             method.getJavaSourceStartLineNumber(),
             method.getJavaSourceStartColumnNumber(),
@@ -156,7 +171,7 @@ public class pDG_Builder {
             int uid = g.addNode(
                 lm.label(this, b),
                 b.toString(),
-                klass.getPackageName(), klass.getName(), method.getSignature(),
+                klass.getPackageName(), klass.getName(), source, method.getSignature(),
                 lm.nodeType(b),
                 b.getHead().getJavaSourceStartLineNumber(),
                 b.getHead().getJavaSourceStartColumnNumber(),
