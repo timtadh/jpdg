@@ -33,6 +33,8 @@ import java.util.*;
 
 import soot.util.Chain;
 
+import soot.jimple.toolkits.callgraph.CallGraph;
+
 import soot.toolkits.graph.BlockGraph;
 import soot.toolkits.graph.pdg.EnhancedBlockGraph;
 import soot.toolkits.graph.ExpandedBlockGraph;
@@ -45,16 +47,18 @@ public class PDG_Builder {
 
     LabelMaker lm;
     Graph g = new Graph();
+    CallGraph cg;
     Chain<soot.SootClass> classes;
     List<String> excluded;
 
-    public static Graph build(LabelMaker lm, Chain<soot.SootClass> classes, List<String> excluded) throws pDG_Builder.Error {
-        PDG_Builder self = new PDG_Builder(lm, classes, excluded);
+    public static Graph build(CallGraph cg, LabelMaker lm, Chain<soot.SootClass> classes, List<String> excluded) throws pDG_Builder.Error {
+        PDG_Builder self = new PDG_Builder(cg, lm, classes, excluded);
         self.build_PDG();
         return self.g;
     }
 
-    private PDG_Builder(LabelMaker lm, Chain<soot.SootClass> classes, List<String> excluded) {
+    private PDG_Builder(CallGraph cg, LabelMaker lm, Chain<soot.SootClass> classes, List<String> excluded) {
+        this.cg = cg;
         this.lm = lm;
         this.classes = classes;
         this.excluded = excluded;
@@ -62,6 +66,7 @@ public class PDG_Builder {
 
     void build_PDG() throws pDG_Builder.Error {
         System.out.println(classes);
+        List<soot.SootClass> allowed = new ArrayList<soot.SootClass>();
         for (soot.SootClass c : classes) {
             String pkg_name = c.getPackageName();
             String cls_name = c.getName();
@@ -87,16 +92,41 @@ public class PDG_Builder {
                 }
             }
             if (use) {
-                try {
-                    process_class(c);
-                } catch (Exception e) {
-                    System.err.println(e);
-                }
+                allowed.add(c);
+            }
+        }
+        Map<String,Integer> method_entries = new HashMap<String,Integer>();
+        for (soot.SootClass c : allowed) {
+            String source = "";
+            try {
+                source = new String(c.getTag("SourceFileTag").getValue(), "UTF-8");
+            } catch (java.io.UnsupportedEncodingException e) {
+                throw new RuntimeException(e.toString());
+            }
+            for (soot.SootMethod m : c.getMethods()) {
+                String name = pDG_Builder.method_name(m);
+                int entry_uid = g.addNode(
+                    name, "",
+                    c.getPackageName(), c.getName(), source, m.getSignature(),
+                    "entry",
+                    m.getJavaSourceStartLineNumber(),
+                    m.getJavaSourceStartColumnNumber(),
+                    m.getJavaSourceStartLineNumber(),
+                    m.getJavaSourceStartColumnNumber()
+                );
+                method_entries.put(name, entry_uid);
+            }
+        }
+        for (soot.SootClass c : allowed) {
+            try {
+                process_class(method_entries, c);
+            } catch (Exception e) {
+                System.err.println(e);
             }
         }
     }
 
-    void process_class(soot.SootClass c) throws pDG_Builder.Error {
+    void process_class(Map<String,Integer> method_entries, soot.SootClass c) throws pDG_Builder.Error {
         System.out.println(c);
         for (soot.SootMethod m : c.getMethods()) {
             System.out.println(String.format("   %s", m));
@@ -109,7 +139,7 @@ public class PDG_Builder {
             }
             BlockGraph ebg = new UnitBlockGraph(body);
             try {
-                pDG_Builder.build(lm, g, c, m, body, ebg);
+                pDG_Builder.build(cg, method_entries, lm, g, c, m, body, ebg);
             } catch (pDG_Builder.SootError e) {
                 System.err.println(String.format("soot error for method %s\n%s", m, e));
                 continue;

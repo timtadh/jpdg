@@ -35,7 +35,9 @@ import soot.SourceLocator;
 
 import soot.jimple.toolkits.callgraph.CHATransformer;
 import soot.jimple.toolkits.callgraph.CallGraph;
+import soot.jimple.toolkits.callgraph.Edge;
 import soot.jimple.toolkits.callgraph.Targets;
+import soot.jimple.internal.*;
 
 import soot.toolkits.graph.Block;
 import soot.toolkits.graph.BlockGraph;
@@ -96,6 +98,8 @@ public class pDG_Builder {
     }
 
     public Graph g;
+    CallGraph cg;
+    Map<String,Integer> method_entries;
     LabelMaker lm;
     soot.SootClass klass;
     soot.SootMethod method;
@@ -110,8 +114,8 @@ public class pDG_Builder {
     public ddg_Builder ddg_builder;
 
 
-    public static void build(LabelMaker lm, Graph g, soot.SootClass c, soot.SootMethod m, soot.Body body, BlockGraph cfg) throws Error {
-        pDG_Builder self = new pDG_Builder(lm, g, c, m, body, cfg);
+    public static void build(CallGraph cg, Map<String,Integer> method_entries, LabelMaker lm, Graph g, soot.SootClass c, soot.SootMethod m, soot.Body body, BlockGraph cfg) throws Error {
+        pDG_Builder self = new pDG_Builder(cg, method_entries, lm, g, c, m, body, cfg);
         self.build_pDG();
     }
 
@@ -121,7 +125,9 @@ public class pDG_Builder {
 
     private pDG_Builder() {}
 
-    private pDG_Builder(LabelMaker lm, Graph g, soot.SootClass c, soot.SootMethod m, soot.Body body, BlockGraph cfg) throws Error {
+    private pDG_Builder(CallGraph cg, Map<String,Integer> method_entries, LabelMaker lm, Graph g, soot.SootClass c, soot.SootMethod m, soot.Body body, BlockGraph cfg) throws Error {
+        this.cg = cg;
+        this.method_entries = method_entries;
         this.lm = lm;
         this.g = g;
         this.klass = c;
@@ -150,6 +156,10 @@ public class pDG_Builder {
         return null;
     }
 
+    public static String method_name(soot.SootMethod m) {
+        return "method "+m.getSignature();
+    }
+
     void assign_uids() {
         String source = "";
         try {
@@ -157,19 +167,27 @@ public class pDG_Builder {
         } catch (java.io.UnsupportedEncodingException e) {
             throw new RuntimeException(e.toString());
         }
-        this.entry_uid = g.addNode(
-            "entry-"+method.getSignature(), "",
-            klass.getPackageName(), klass.getName(), source, method.getSignature(),
-            "entry",
-            method.getJavaSourceStartLineNumber(),
-            method.getJavaSourceStartColumnNumber(),
-            method.getJavaSourceStartLineNumber(),
-            method.getJavaSourceStartColumnNumber()
-        );
+        String name = method_name(method);
+        if (method_entries.containsKey(name)) {
+            this.entry_uid = method_entries.get(name);
+        } else {
+            throw new RuntimeException("method not in method_entries");
+            // this.entry_uid = g.addNode(
+            //     name, "",
+            //     klass.getPackageName(), klass.getName(), source, method.getSignature(),
+            //     "entry",
+            //     method.getJavaSourceStartLineNumber(),
+            //     method.getJavaSourceStartColumnNumber(),
+            //     method.getJavaSourceStartLineNumber(),
+            //     method.getJavaSourceStartColumnNumber()
+            // );
+            // method_entries.put(name, this.entry_uid);
+        }
         for (Iterator<Block> i = cfg.iterator(); i.hasNext(); ) {
             Block b = i.next();
+            String bLabel = lm.label(this, b);
             int uid = g.addNode(
-                lm.label(this, b),
+                bLabel,
                 b.toString(),
                 klass.getPackageName(), klass.getName(), source, method.getSignature(),
                 lm.nodeType(b),
@@ -180,6 +198,26 @@ public class pDG_Builder {
             );
             block_uids.put(b.getIndexInMethod(), uid);
             lm.postLabel(this, uid, b);
+            if (bLabel.startsWith("call")) {
+                for (Iterator<soot.Unit> iu = b.iterator(); iu.hasNext(); ) {
+                    soot.Unit u = iu.next();
+                    add_call_edges(uid, u);
+                }
+            }
+        }
+    }
+
+    void add_call_edges(int src, soot.Unit to) {
+        for (Iterator<Edge> ie = cg.edgesOutOf(to); ie.hasNext(); ) {
+            Edge e = ie.next();
+            soot.SootMethod targ = e.getTgt().method();
+            if (targ != null) {
+                String name = method_name(targ);
+                if (method_entries.containsKey(name)) {
+                    int targ_uid = method_entries.get(name);
+                    g.addEdge(src, targ_uid, "");
+                }
+            }
         }
     }
 

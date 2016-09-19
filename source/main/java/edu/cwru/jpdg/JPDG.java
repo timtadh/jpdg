@@ -155,8 +155,8 @@ public class JPDG {
         O.set_process_dir(dirs);
         // O.set_exclude(excluded);
         // O.set_no_bodies_for_excluded(true);
-        // O.set_whole_program(true);
-        // O.setPhaseOption("cg.spark", "enabled:true");
+        O.set_whole_program(true);
+        O.setPhaseOption("cg.spark", "enabled:true");
         // O.setPhaseOption("wjtp", "enabled:true");
         // O.setPhaseOption("wjtp.myTrans", "enabled:true");
         // O.setPhaseOption("jop", "enabled:true");
@@ -201,7 +201,8 @@ public class JPDG {
         }
         System.out.println("LABEL TYPE " + label_type + " " + lm);
         soot.util.Chain<soot.SootClass> classes = S.getApplicationClasses();
-        return PDG_Builder.build(lm, classes, excluded);
+        CallGraph cg = S.getCallGraph();
+        return PDG_Builder.build(cg, lm, classes, excluded);
     }
 
     public static void writeGraph(Graph g, String path) {
