@@ -251,7 +251,7 @@ func main() {
             label := string(k.(types.ByteSlice))
             matches := v.([]*graph.Vertex)
             if len(matches) >= minimum {
-                fmt.Fprintln(os.Stderr, label, len(matches))
+                fmt.Fprintln(os.Stderr, len(matches), label)
                 for _, match := range matches {
                     graph := direction(G, match, filtered_edges, filtered_nodes)
                     if len(graph.V) > 1 {
@@ -261,6 +261,7 @@ func main() {
             }
         }
         fmt.Fprintln(os.Stderr)
+        return
     } else {
         slices = G.Slice(prefix, direction, filtered_edges, filtered_nodes)
     }

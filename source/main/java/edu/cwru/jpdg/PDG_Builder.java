@@ -87,7 +87,11 @@ public class PDG_Builder {
                 }
             }
             if (use) {
-                process_class(c);
+                try {
+                    process_class(c);
+                } catch (Exception e) {
+                    System.err.println(e);
+                }
             }
         }
     }
