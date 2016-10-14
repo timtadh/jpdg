@@ -79,7 +79,7 @@ public class JPDG {
     public static void main(String[] argv) throws pDG_Builder.Error {
         final Option helpOpt = new Option("h", "help", false, "print this message");
         final Option outputOpt = new Option("o", "output", true, "output file location");
-        final Option baseOpt = new Option("b", "base-dir", true, "base directory to analyze");
+        final Option baseOpt = new Option("d", "dirs", true, "base directories to analyze");
         final Option excludeOpt = new Option("e", "exclude", true, "exclude these directories");
         final Option classOpt = new Option("c", "classpath", true, "classpath for soot");
         final Option labelOpt = new Option("l", "label-type", true, "label type, valid choices are: expr-tree, inst");
@@ -93,7 +93,7 @@ public class JPDG {
         options.addOption(excludeOpt);
 
         String cp = null;
-        String base_dir = null;
+        List<String> dirs = new ArrayList<String>();
         String label_type = "expr-tree";
         String output_file = null;
         List<String> excluded = new ArrayList<String>();
@@ -107,12 +107,15 @@ public class JPDG {
             }
 
             cp = line.getOptionValue(classOpt.getLongOpt());
-            base_dir = line.getOptionValue(baseOpt.getLongOpt());
+            String[] dir_arr = line.getOptionValues(baseOpt.getLongOpt());
             label_type = line.getOptionValue(labelOpt.getLongOpt());
             output_file = line.getOptionValue(outputOpt.getLongOpt());
             String[] ex = line.getOptionValues(excludeOpt.getLongOpt());
             if (ex != null) {
                 excluded = Arrays.asList(ex);
+            }
+            if (dir_arr != null) {
+                dirs = Arrays.asList(dir_arr);
             }
         } catch (final MissingOptionException e) {
             System.err.println(e.getMessage());
@@ -124,9 +127,6 @@ public class JPDG {
             System.err.println(e.getMessage());
             System.exit(1);
         }
-
-        List<String> dirs = new ArrayList<String>();
-        dirs.add(base_dir);
 
         soot.Scene S = runSoot(cp, dirs, excluded);
         writeGraph(build_PDG(S, excluded, label_type), output_file);
@@ -155,8 +155,13 @@ public class JPDG {
         O.set_process_dir(dirs);
         // O.set_exclude(excluded);
         // O.set_no_bodies_for_excluded(true);
-        O.set_whole_program(true);
-        O.setPhaseOption("cg.spark", "enabled:true");
+        if (true) {
+            O.set_whole_program(true);
+            // O.setPhaseOption("cg.spark", "enabled:true");
+            O.setPhaseOption("cg.cha", "enabled:true");
+            O.setPhaseOption("cg.spark", "enabled:false");
+            O.setPhaseOption("cg.paddle", "enabled:false");
+        }
         // O.setPhaseOption("wjtp", "enabled:true");
         // O.setPhaseOption("wjtp.myTrans", "enabled:true");
         // O.setPhaseOption("jop", "enabled:true");
@@ -201,7 +206,10 @@ public class JPDG {
         }
         System.out.println("LABEL TYPE " + label_type + " " + lm);
         soot.util.Chain<soot.SootClass> classes = S.getApplicationClasses();
-        CallGraph cg = S.getCallGraph();
+        CallGraph cg = null;
+        if (true) {
+            cg = S.getCallGraph();
+        }
         return PDG_Builder.build(cg, lm, classes, excluded);
     }
 

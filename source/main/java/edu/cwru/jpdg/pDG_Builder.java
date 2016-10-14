@@ -208,6 +208,9 @@ public class pDG_Builder {
     }
 
     void add_call_edges(int src, soot.Unit to) {
+        if (cg == null) {
+            return;
+        }
         for (Iterator<Edge> ie = cg.edgesOutOf(to); ie.hasNext(); ) {
             Edge e = ie.next();
             soot.SootMethod targ = e.getTgt().method();

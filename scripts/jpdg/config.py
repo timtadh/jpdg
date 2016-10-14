@@ -51,6 +51,7 @@ schema = {
             'class_dirs': [ 'shell_str' ],
             'exclude_pkgs': [ 'shell_str' ],
             'target': 'shell_str',
+            'targets': [ 'shell_str' ],
         },
     }
 }
@@ -90,15 +91,21 @@ class Configuration(conf.BaseConfig):
             ':'.join(subject['lib_jars']),
             subject['classpath'],
         ))
+        targets = list()
+        if 'target' in subject:
+            targets.append(subject['target'])
+        else:
+            targets.extend(subject['targets'])
         subject['jpdg_cmd'] = [
             'java',
-            '-Xmx6g',
+            '-Xmx8g',
             '-jar',
             self.jpdg_jar,
             '-c', subject['soot_classpath'],
-            '-b', subject['target'],
             '-l', 'op',
         ]
+        for t in targets:
+            subject['jpdg_cmd'] += ['-d', t]
         for ex_dir in subject['exclude_pkgs']:
             subject['jpdg_cmd'] += ['-e', ex_dir]
         return subject
