@@ -155,7 +155,7 @@ public class JPDG {
         O.set_process_dir(dirs);
         // O.set_exclude(excluded);
         // O.set_no_bodies_for_excluded(true);
-        if (true) {
+        if (false) {
             O.set_whole_program(true);
             // O.setPhaseOption("cg.spark", "enabled:true");
             O.setPhaseOption("cg.cha", "enabled:true");
@@ -207,19 +207,17 @@ public class JPDG {
         System.out.println("LABEL TYPE " + label_type + " " + lm);
         soot.util.Chain<soot.SootClass> classes = S.getApplicationClasses();
         CallGraph cg = null;
-        if (true) {
+        if (false) {
             cg = S.getCallGraph();
         }
         return PDG_Builder.build(cg, lm, classes, excluded);
     }
 
     public static void writeGraph(Graph g, String path) {
-        byte[] graph = g.Serialize().getBytes(Charset.forName("UTF-8"));
-
         FileOutputStream s = null;
         try {
             s = new FileOutputStream(path);
-            s.write(graph);
+            g.Write(s);
         } catch (IOException ex) {
             System.err.println(ex);
         } finally {

@@ -30,6 +30,9 @@ package edu.cwru.jpdg.graph;
  */
 
 import java.util.*;
+import java.io.OutputStream;
+import java.io.IOException;
+import java.nio.charset.Charset;
 import java.lang.StringBuilder;
 
 import com.google.gson.Gson;
@@ -121,6 +124,24 @@ public class Graph {
             return false;
         }
         return edges.get(type).get(a).contains(b);
+    }
+
+    public void Write(OutputStream fout) throws IOException {
+        for (Node n : nodes.values()) {
+            fout.write(n.Serialize().getBytes(Charset.forName("UTF-8")));
+            fout.write("\n".getBytes(Charset.forName("UTF-8")));
+        }
+        for (Map.Entry<String,HashMap<Integer,Set<Integer>>> E : edges.entrySet()) {
+            String e_label = E.getKey();
+            HashMap<Integer,Set<Integer>> edges = E.getValue();
+            for (Map.Entry<Integer,Set<Integer>> e : edges.entrySet()) {
+                int i = e.getKey();
+                for (int j : e.getValue()) {
+                    fout.write((new Edge(i, j, e_label, this)).Serialize().getBytes(Charset.forName("UTF-8")));
+                    fout.write("\n".getBytes(Charset.forName("UTF-8")));
+                }
+            }
+        }
     }
 
     public String Serialize() {

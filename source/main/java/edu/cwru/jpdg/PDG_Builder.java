@@ -102,8 +102,16 @@ public class PDG_Builder {
                 source = new String(c.getTag("SourceFileTag").getValue(), "UTF-8");
             } catch (java.io.UnsupportedEncodingException e) {
                 throw new RuntimeException(e.toString());
+            } catch (java.lang.Exception e) {
+                source = "unknown";
             }
-            for (soot.SootMethod m : c.getMethods()) {
+            List<soot.SootMethod> methods = null;
+            try {
+              methods = c.getMethods();
+            } catch (java.lang.Exception e) {
+              continue;
+            }
+            for (soot.SootMethod m : methods) {
                 String name = pDG_Builder.method_name(m);
                 int entry_uid = g.addNode(
                     name, "",
